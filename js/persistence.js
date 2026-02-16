@@ -1,6 +1,7 @@
 import { GameState } from './state.js';
 import { CONFIG } from './config.js';
 import { CombatEngine } from './combat.js';
+import { UI } from './ui.js';
 
 export const Persistence = {
     SAVE_KEY: 'idle_combat_save_v1',
@@ -17,32 +18,132 @@ export const Persistence = {
 
         try {
             const parsed = JSON.parse(payload);
-            Object.assign(GameState, parsed); // Hydrate state
+
+            // Validate that essential data exists
+            if (!parsed.enemy || !parsed.enemy.id || !CONFIG.ENEMIES[parsed.enemy.id]) {
+                throw new Error("Invalid enemy data");
+            }
+
+            Object.assign(GameState, parsed);
+
+            // Ensure deaths property exists (for old saves that don't have it)
+            if (typeof GameState.player.deaths === 'undefined') {
+                GameState.player.deaths = 0;
+            }
+
             this.calculateOfflineProgress();
         } catch (e) {
-            console.error("Corrupted save data. Starting fresh.");
+            console.error("Corrupted save data. Starting fresh.", e);
+            // Clear corrupted save
+            localStorage.removeItem(this.SAVE_KEY);
+
+            // Reset to defaults
+            GameState.enemy.id = 'training_dummy';
+            GameState.enemy.currentHp = CONFIG.ENEMIES['training_dummy'].hp;
+            GameState.enemy.tickTimer = 0;
+
+            GameState.player.currentHp = CONFIG.PLAYER_BASE.hp;
+            GameState.player.level = 1;
+            GameState.player.wins = 0;
+            GameState.player.deaths = 0;
+            GameState.player.tickTimer = 0;
+
+            GameState.equipment.weaponId = 'w1';
+            GameState.equipment.armorId = 'a1';
+            GameState.equipment.charmId = 'c1';
+
+            GameState.combat.isActive = false;
+            GameState.combat.log = [];
+
+            GameState.system.lastSaveTime = Date.now();
+        }
+    },
+
+    restart() {
+        // Stop combat if active
+        CombatEngine.stop();
+
+        // Clear save data
+        localStorage.removeItem(this.SAVE_KEY);
+
+        // Reset enemy first (before player, so config exists)
+        GameState.enemy.id = 'training_dummy';
+        GameState.enemy.currentHp = CONFIG.ENEMIES['training_dummy'].hp;
+        GameState.enemy.tickTimer = 0;
+
+        // Reset player state
+        GameState.player.currentHp = CONFIG.PLAYER_BASE.hp;
+        GameState.player.level = 1;
+        GameState.player.wins = 0;
+        GameState.player.deaths = 0;
+        GameState.player.tickTimer = 0;
+
+        // Reset equipment
+        GameState.equipment.weaponId = 'w1';
+        GameState.equipment.armorId = 'a1';
+        GameState.equipment.charmId = 'c1';
+
+        // Reset combat state
+        GameState.combat.isActive = false;
+        GameState.combat.log = [];
+
+        // Reset system
+        GameState.system.lastSaveTime = Date.now();
+
+        // Reset respawn flag
+        CombatEngine.isRespawning = false;
+
+        // Reinitialize UI (which repopulates dropdowns and updates display)
+        UI.populateDropdowns();
+        UI.updateAll();
+
+        // Show confirmation
+        const status = document.getElementById('save-status');
+        if (status) {
+            status.textContent = 'Game Restarted';
+            setTimeout(() => status.textContent = 'Saved', 2000);
         }
     },
 
     calculateOfflineProgress() {
         const now = Date.now();
         const elapsedMs = now - GameState.system.lastSaveTime;
-        const maxMs = CONFIG.MAX_OFFLINE_HOURS * 60 * 60 * 1000;
+
+        // Max 8 hours of offline progress
+        const maxMs = 8 * 60 * 60 * 1000;
         const boundedMs = Math.min(elapsedMs, maxMs);
 
         const ticks = Math.floor(boundedMs / CONFIG.TICK_RATE_MS);
-        if (ticks < 10) return; // Ignore very short reloads
+
+        // Ignore very short reloads (less than 1 second)
+        if (ticks < 10) return;
 
         const startingWins = GameState.player.wins;
+        const startingDeaths = GameState.player.deaths;
 
-        // Run headless loop
-        for(let i = 0; i < ticks; i++) {
-            CombatEngine.tick(true); // pass true to disable UI rendering
+        // Temporarily enable combat for offline simulation
+        GameState.combat.isActive = true;
+
+        // Run headless simulation
+        for (let i = 0; i < ticks; i++) {
+            CombatEngine.tick(true);
         }
 
+        // Reset combat state after simulation
+        GameState.combat.isActive = false;
+        CombatEngine.isRespawning = false;
+
         const winsGained = GameState.player.wins - startingWins;
+        const deathsGained = GameState.player.deaths - startingDeaths;
 
         // Show offline summary modal
-        UI.showModal(`While you were away...`, `You simulated ${ticks} combat ticks and defeated ${winsGained} enemies.`);
+        const hours = Math.floor(boundedMs / (1000 * 60 * 60));
+        const minutes = Math.floor((boundedMs % (1000 * 60 * 60)) / (1000 * 60));
+        const timeText = hours > 0 ? `${hours}h ${minutes}m` : `${minutes}m`;
+
+        UI.showModal(
+            `While you were away (${timeText})...`,
+            `You defeated ${winsGained} enemies and died ${deathsGained} times.`
+        );
     }
 };

@@ -8,12 +8,15 @@ export const UI = {
     init() {
         // Hydrate DOM cache
         const ids = ['player-current-hp', 'player-max-hp', 'player-hp-fill', 'player-dmg-stat', 'player-acc-stat',
-                     'player-eva-stat', 'player-dr-stat', 'player-wins-stat', 'enemy-current-hp', 'enemy-max-hp',
-                     'enemy-hp-fill', 'enemy-dmg-stat', 'enemy-acc-stat', 'enemy-eva-stat', 'enemy-name-display',
-                     'equip-weapon', 'equip-armor', 'equip-charm', 'enemy-selector', 'log-list', 'btn-toggle-combat',
-                     'save-status', 'offline-modal', 'offline-summary-text', 'btn-close-modal'];
+                     'player-eva-stat', 'player-dr-stat', 'player-wins-stat', 'player-deaths-stat',
+                     'enemy-current-hp', 'enemy-max-hp', 'enemy-hp-fill', 'enemy-dmg-stat', 'enemy-acc-stat',
+                     'enemy-eva-stat', 'enemy-name-display', 'equip-weapon', 'equip-armor', 'equip-charm',
+                     'enemy-selector', 'log-list', 'btn-toggle-combat', 'save-status', 'offline-modal',
+                     'offline-summary-text', 'btn-close-modal'];
 
-        ids.forEach(id => { this.elements[id] = document.getElementById(id); });
+        ids.forEach(id => {
+            this.elements[id] = document.getElementById(id);
+        });
 
         this.populateDropdowns();
         this.updateAll();
@@ -42,38 +45,58 @@ export const UI = {
     },
 
     updatePlayer() {
-        const pStats = GameState.getPlayerStats(); // Returns merged stats (Base + Equipment)
+        const pStats = GameState.getPlayerStats();
 
-        this.elements['player-current-hp'].textContent = GameState.player.currentHp;
+        // HP values - ensure never negative
+        const currentHp = Math.max(0, Math.ceil(GameState.player.currentHp));
+        this.elements['player-current-hp'].textContent = currentHp;
         this.elements['player-max-hp'].textContent = pStats.hp;
-        this.elements['player-hp-fill'].style.width = `${Math.max(0, (GameState.player.currentHp / pStats.hp) * 100)}%`;
 
+        // HP bar percentage - clamped 0-100
+        const pPercent = Math.max(0, Math.min(100, (GameState.player.currentHp / pStats.hp) * 100));
+        this.elements['player-hp-fill'].style.width = `${pPercent}%`;
+
+        // Color code HP bar based on health
+        this.elements['player-hp-fill'].style.backgroundColor = pPercent < 30 ? '#ef4444' : '#22c55e';
+
+        // Stats
         this.elements['player-dmg-stat'].textContent = `${pStats.minHit}-${pStats.maxHit}`;
         this.elements['player-acc-stat'].textContent = pStats.accuracy;
         this.elements['player-eva-stat'].textContent = pStats.evasion;
         this.elements['player-dr-stat'].textContent = `${pStats.damageReduction || 0}%`;
         this.elements['player-wins-stat'].textContent = GameState.player.wins;
+        this.elements['player-deaths-stat'].textContent = GameState.player.deaths;
     },
 
     updateEnemy() {
         const eStats = CONFIG.ENEMIES[GameState.enemy.id];
 
         this.elements['enemy-name-display'].textContent = eStats.name;
-        this.elements['enemy-current-hp'].textContent = GameState.enemy.currentHp;
-        this.elements['enemy-max-hp'].textContent = eStats.hp;
-        this.elements['enemy-hp-fill'].style.width = `${Math.max(0, (GameState.enemy.currentHp / eStats.hp) * 100)}%`;
 
+        // HP values - ensure never negative
+        const currentHp = Math.max(0, Math.ceil(GameState.enemy.currentHp));
+        this.elements['enemy-current-hp'].textContent = currentHp;
+        this.elements['enemy-max-hp'].textContent = eStats.hp;
+
+        // HP bar percentage - clamped 0-100
+        const ePercent = Math.max(0, Math.min(100, (GameState.enemy.currentHp / eStats.hp) * 100));
+        this.elements['enemy-hp-fill'].style.width = `${ePercent}%`;
+
+        // Stats
         this.elements['enemy-dmg-stat'].textContent = `${eStats.minHit}-${eStats.maxHit}`;
         this.elements['enemy-acc-stat'].textContent = eStats.accuracy;
         this.elements['enemy-eva-stat'].textContent = eStats.evasion;
     },
 
     updateLog() {
+        if (!this.elements['log-list']) return;
         this.elements['log-list'].innerHTML = GameState.combat.log.map(msg => `<li>${msg}</li>`).join('');
     },
 
     updateCombatButton() {
         const btn = this.elements['btn-toggle-combat'];
+        if (!btn) return;
+
         btn.textContent = GameState.combat.isActive ? 'Disengage' : 'Engage Combat';
         btn.style.background = GameState.combat.isActive ? 'var(--border)' : 'var(--accent)';
     },
@@ -86,20 +109,22 @@ export const UI = {
         el.className = `floating-text ${type}`;
         el.textContent = text;
 
-        // Randomize horizontal position slightly to prevent text overlapping
+        // Randomize horizontal position slightly to prevent overlapping
         const randomX = (Math.random() - 0.5) * 40;
         el.style.marginLeft = `${randomX}px`;
 
         container.appendChild(el);
-        setTimeout(() => el.remove(), 1000); // Clean up DOM
+        setTimeout(() => el.remove(), 1000);
     },
 
     showModal(title, text) {
+        if (!this.elements['offline-modal']) return;
         this.elements['offline-summary-text'].textContent = text;
         this.elements['offline-modal'].classList.remove('hidden');
     },
 
     hideModal() {
+        if (!this.elements['offline-modal']) return;
         this.elements['offline-modal'].classList.add('hidden');
     }
 };

@@ -58,6 +58,13 @@ document.addEventListener('DOMContentLoaded', () => {
         setTimeout(() => status.textContent = 'Saved', 2000);
     });
 
+    // Restart Game
+    document.getElementById('btn-restart').addEventListener('click', () => {
+        if (confirm('Are you sure you want to restart? This will delete all progress.')) {
+            Persistence.restart();
+        }
+    });
+
     // Modal Close
     document.getElementById('btn-close-modal').addEventListener('click', () => {
         UI.hideModal();
