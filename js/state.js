@@ -25,15 +25,27 @@ export const GameState = {
         lastSaveTime: Date.now()
     },
 
-    // Derived State Getters
-    getPlayerStats() {
-        // Here, merge CONFIG.PLAYER_BASE with stats from GameState.equipment IDs
-        // This ensures data normalization (we only save IDs, not the full object)
-        // ... implementation details
-    },
 
     addLog(message) {
         this.combat.log.unshift(message);
         if (this.combat.log.length > 10) this.combat.log.pop();
+    }
+
+    // Add this inside GameState in state.js
+    getPlayerStats() {
+        const base = CONFIG.PLAYER_BASE;
+        const weapon = CONFIG.EQUIPMENT.weapons.find(w => w.id === this.equipment.weaponId);
+        const armor = CONFIG.EQUIPMENT.armor.find(a => a.id === this.equipment.armorId);
+        const charm = CONFIG.EQUIPMENT.charms.find(c => c.id === this.equipment.charmId);
+
+        return {
+            hp: base.hp,
+            attackInterval: base.attackInterval,
+            minHit: base.minHit + (weapon ? weapon.minHit : 0),
+            maxHit: base.maxHit + (weapon ? weapon.maxHit : 0),
+            accuracy: base.accuracy + (charm ? (charm.accuracy || 0) : 0),
+            evasion: base.evasion + (charm ? (charm.evasion || 0) : 0),
+            damageReduction: base.damageReduction + (armor ? (armor.damageReduction || 0) : 0)
+        };
     }
 };

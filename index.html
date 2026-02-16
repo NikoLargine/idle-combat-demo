@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Systems / Idle</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <header class="top-bar">
+        <h1>Systems / Idle <span class="version">v1.0.0</span></h1>
+        <div class="system-controls">
+            <span id="save-status">Saved</span>
+            <button id="btn-manual-save" class="btn-secondary">Save Game</button>
+            <button id="btn-debug" class="btn-secondary">Debug: Off</button>
+        </div>
+    </header>
+
+    <main class="game-container">
+        <section class="panel player-panel">
+            <h2>Player</h2>
+            <div class="avatar-container" id="player-avatar">
+                <div class="hp-bar-bg">
+                    <div class="hp-bar-fill" id="player-hp-fill"></div>
+                </div>
+                <div class="hp-text"><span id="player-current-hp">100</span> / <span id="player-max-hp">100</span></div>
+            </div>
+
+            <div class="stats-grid">
+                <span>Damage:</span> <span id="player-dmg-stat">0-0</span>
+                <span>Accuracy:</span> <span id="player-acc-stat">0</span>
+                <span>Evasion:</span> <span id="player-eva-stat">0</span>
+                <span>Reduction:</span> <span id="player-dr-stat">0%</span>
+                <span>Wins:</span> <span id="player-wins-stat">0</span>
+            </div>
+
+            <div class="equipment-section">
+                <h3>Equipment</h3>
+                <select id="equip-weapon"></select>
+                <select id="equip-armor"></select>
+                <select id="equip-charm"></select>
+            </div>
+
+            <div class="combat-log">
+                <h3>Log</h3>
+                <ul id="log-list"></ul>
+            </div>
+        </section>
+
+        <section class="panel enemy-panel">
+            <h2>Target</h2>
+            <select id="enemy-selector" class="enemy-dropdown"></select>
+
+            <div class="avatar-container" id="enemy-avatar">
+                <h3 id="enemy-name-display">Training Dummy</h3>
+                <div class="hp-bar-bg">
+                    <div class="hp-bar-fill enemy-hp" id="enemy-hp-fill"></div>
+                </div>
+                <div class="hp-text"><span id="enemy-current-hp">200</span> / <span id="enemy-max-hp">200</span></div>
+            </div>
+
+            <div class="stats-grid">
+                <span>Damage:</span> <span id="enemy-dmg-stat">0-0</span>
+                <span>Accuracy:</span> <span id="enemy-acc-stat">0</span>
+                <span>Evasion:</span> <span id="enemy-eva-stat">0</span>
+            </div>
+
+            <div class="action-section">
+                <button id="btn-toggle-combat" class="btn-primary">Engage Combat</button>
+            </div>
+        </section>
+    </main>
+
+    <div id="offline-modal" class="modal hidden">
+        <div class="modal-content">
+            <h2>Offline Progress</h2>
+            <p id="offline-summary-text"></p>
+            <button id="btn-close-modal" class="btn-primary">Acknowledge</button>
+        </div>
+    </div>
+
+    <script type="module" src="js/main.js"></script>
+</body>
+</html>
