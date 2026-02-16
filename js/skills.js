@@ -1,6 +1,7 @@
 import { GameState } from './state.js';
 import { CONFIG } from './config.js';
 import * as Economy from './economy.js';
+import * as StatusEffects from './statusEffects.js';
 
 const SKILL_DEFINITIONS = [
     {
@@ -28,14 +29,18 @@ const SKILL_DEFINITIONS = [
         type: 'active',
         cooldown: 12,
         currentCooldown: 0,
-        description: 'Gain +20 accuracy and +10 evasion for 6 seconds.',
+        description: 'Gain Focus for 6s: +20 accuracy, +10 evasion, and faster attacks.',
         unlocked: false,
         unlockRequirement: { type: 'level', value: 3 },
         effect(player, enemy, context) {
             void player;
             void enemy;
-            context.runtime.focusSecondsRemaining = 6;
-            return { buffApplied: true };
+            void context;
+            const applied = StatusEffects.applyStatusEffect(GameState.player, {
+                id: 'battle_focus',
+                source: 'skill:battle_focus'
+            });
+            return { buffApplied: !!applied };
         }
     },
     {
@@ -83,14 +88,21 @@ const SKILL_DEFINITIONS = [
         type: 'active',
         cooldown: 7,
         currentCooldown: 0,
-        description: 'Coat your weapon in poison: next hit gains +20 flat damage.',
+        description: 'Apply Poison to the target for 6s (2 damage per second).',
         unlocked: false,
         unlockRequirement: { type: 'achievement', value: 'kill_50_enemies' },
         effect(player, enemy, context) {
             void player;
-            void enemy;
-            context.runtime.pendingPoisonStrike = { flatBonus: 20 };
-            return { buffApplied: true };
+            void context;
+            const target = GameState.enemy;
+            if (!target) return { debuffApplied: false };
+            const applied = StatusEffects.applyStatusEffect(target, {
+                id: 'poison',
+                source: 'skill:poison_strike'
+            }, {
+                targetType: 'enemy'
+            });
+            return { debuffApplied: !!applied };
         }
     },
     {
@@ -178,9 +190,7 @@ const SKILL_BY_ID = Object.fromEntries(SKILL_DEFINITIONS.map(skill => [skill.id,
 const runtimeState = {
     cooldowns: {},
     pendingPowerStrike: null,
-    pendingFireStrike: null,
-    pendingPoisonStrike: null,
-    focusSecondsRemaining: 0
+    pendingFireStrike: null
 };
 
 let skillUsedListener = null;
@@ -277,8 +287,6 @@ export function resetSkillRuntimeState() {
     runtimeState.cooldowns = {};
     runtimeState.pendingPowerStrike = null;
     runtimeState.pendingFireStrike = null;
-    runtimeState.pendingPoisonStrike = null;
-    runtimeState.focusSecondsRemaining = 0;
 }
 
 export function isSkillLearned(skillId) {
@@ -434,21 +442,11 @@ export function reduceCooldowns(deltaTime) {
         const next = Math.max(0, getCurrentCooldown(skill.id) - seconds);
         runtimeState.cooldowns[skill.id] = next;
     });
-
-    runtimeState.focusSecondsRemaining = Math.max(0, runtimeState.focusSecondsRemaining - seconds);
 }
 
 export function applyPassiveStatModifiers({ attackerType, defenderType, attackerStats, defenderStats }) {
     const nextAttacker = { ...attackerStats };
     const nextDefender = { ...defenderStats };
-
-    if (attackerType === 'player' && runtimeState.focusSecondsRemaining > 0) {
-        nextAttacker.accuracy = Math.max(0, (nextAttacker.accuracy || 0) + 20);
-    }
-
-    if (defenderType === 'player' && runtimeState.focusSecondsRemaining > 0) {
-        nextDefender.evasion = Math.max(0, (nextDefender.evasion || 0) + 10);
-    }
 
     if (defenderType === 'player' && isSkillLearned('evasive_instinct')) {
         const skill = getSkillDefinition('evasive_instinct');
@@ -476,12 +474,6 @@ export function applyActiveDamageModifiers(attackerType, damage) {
         const boost = runtimeState.pendingFireStrike;
         nextDamage = Math.max(1, Math.floor((nextDamage * boost.multiplier) + boost.flatBonus));
         runtimeState.pendingFireStrike = null;
-    }
-
-    if (runtimeState.pendingPoisonStrike) {
-        const boost = runtimeState.pendingPoisonStrike;
-        nextDamage = Math.max(1, Math.floor(nextDamage + boost.flatBonus));
-        runtimeState.pendingPoisonStrike = null;
     }
 
     return nextDamage;
@@ -529,11 +521,21 @@ export function applyPassivePostHit({ attackerType, defenderType, damageDealt, s
         const counterSkill = getSkillDefinition('counter_strike');
         const counter = counterSkill.effect({ damageDealt: safeDamage }) || { triggered: false, counterDamage: 0 };
         result.counterDamage = Math.max(0, Math.floor(counter.counterDamage || 0));
-        if (counter.triggered && result.counterDamage > 0 && !silent) {
-            onPassiveEffectTriggered(getSkillState('counter_strike'), {
-                type: 'counter_attack',
-                counterDamage: result.counterDamage
+        if (counter.triggered && result.counterDamage > 0) {
+            StatusEffects.applyStatusEffect(GameState.player, {
+                id: 'retaliation_guard',
+                source: 'passive:counter_strike'
+            }, {
+                targetType: 'player',
+                silent
             });
+
+            if (!silent) {
+                onPassiveEffectTriggered(getSkillState('counter_strike'), {
+                    type: 'counter_attack',
+                    counterDamage: result.counterDamage
+                });
+            }
         }
     }
 
@@ -551,7 +553,7 @@ export function tryAutoUseSkills(targetEnemyId, options = {}) {
         if (used) results.push(used);
     }
 
-    if (isSkillAvailable('battle_focus') && runtimeState.focusSecondsRemaining <= 0) {
+    if (isSkillAvailable('battle_focus') && !StatusEffects.hasStatusEffect(GameState.player, 'battle_focus')) {
         const used = useSkill('battle_focus', targetEnemy, options);
         if (used) results.push(used);
     }

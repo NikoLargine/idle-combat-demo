@@ -25,6 +25,7 @@
                     <div class="hp-bar-fill" id="player-hp-fill"></div>
                 </div>
                 <div class="hp-text"><span id="player-current-hp">100</span> / <span id="player-max-hp">100</span></div>
+                <div class="status-effects" id="player-effects"></div>
             </div>
 
             <div class="xp-section">
@@ -80,6 +81,12 @@
 
         <section class="panel enemy-panel">
             <h2>Target</h2>
+            <div class="mission-section">
+                <h3>Missions</h3>
+                <div id="mission-list" class="mission-list"></div>
+                <div id="mission-active-info" class="mission-active-info"></div>
+                <button id="btn-end-mission" class="btn-secondary" disabled>Abandon Mission</button>
+            </div>
             <select id="enemy-selector" class="enemy-dropdown"></select>
 
             <div class="avatar-container" id="enemy-avatar">
@@ -88,6 +95,7 @@
                     <div class="hp-bar-fill enemy-hp" id="enemy-hp-fill"></div>
                 </div>
                 <div class="hp-text"><span id="enemy-current-hp">200</span> / <span id="enemy-max-hp">200</span></div>
+                <div class="status-effects" id="enemy-effects"></div>
             </div>
 
             <div class="stats-grid">

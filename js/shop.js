@@ -1,6 +1,13 @@
 import { CONFIG } from './config.js';
 import { GameState } from './state.js';
 import * as Economy from './economy.js';
+import {
+    calculateItemStats,
+    getRarityDefinition,
+    normalizeItemBaseStats,
+    normalizeRarityId,
+    rollRarity
+} from './rarity.js';
 
 const SLOT_TO_STATE_KEY = {
     weapon: 'weaponId',
@@ -16,18 +23,35 @@ function forEachEquipmentItem(callback) {
     CONFIG.EQUIPMENT.charms.forEach(item => callback(item, 'charm'));
 }
 
+function getAllEquipmentItems() {
+    return [
+        ...CONFIG.EQUIPMENT.weapons,
+        ...CONFIG.EQUIPMENT.armor,
+        ...CONFIG.EQUIPMENT.charms
+    ];
+}
+
+function getRawItemById(itemId) {
+    if (!itemId) return null;
+    return getAllEquipmentItems().find(item => item.id === itemId) || null;
+}
+
 export function normalizeShopState() {
     if (!GameState.shop || typeof GameState.shop !== 'object') {
-        GameState.shop = { itemUnlocks: {} };
+        GameState.shop = { itemUnlocks: {}, itemRarities: {} };
     }
     if (!GameState.shop.itemUnlocks || typeof GameState.shop.itemUnlocks !== 'object' || Array.isArray(GameState.shop.itemUnlocks)) {
         GameState.shop.itemUnlocks = {};
+    }
+    if (!GameState.shop.itemRarities || typeof GameState.shop.itemRarities !== 'object' || Array.isArray(GameState.shop.itemRarities)) {
+        GameState.shop.itemRarities = {};
     }
 
     forEachEquipmentItem((item, fallbackSlot) => {
         if (!item.slot || !SLOT_TO_STATE_KEY[item.slot]) {
             item.slot = fallbackSlot;
         }
+        normalizeItemBaseStats(item);
 
         if (!Number.isFinite(item.cost) || item.cost < 0) {
             item.cost = 0;
@@ -54,7 +78,17 @@ export function normalizeShopState() {
             item.unlocked = true;
         }
 
+        const savedRarity = GameState.shop.itemRarities[item.id];
+        const rarityFromItem = normalizeRarityId(item.rarity);
+        const shouldRollInitialRarity = typeof savedRarity !== 'string';
+        // First-time generated items roll rarity once, then persist in GameState.shop.itemRarities.
+        const nextRarity = typeof savedRarity === 'string'
+            ? normalizeRarityId(savedRarity)
+            : (STARTER_ITEM_IDS.has(item.id) ? rarityFromItem : rollRarity());
+
+        item.rarity = shouldRollInitialRarity ? nextRarity : normalizeRarityId(savedRarity);
         GameState.shop.itemUnlocks[item.id] = item.unlocked;
+        GameState.shop.itemRarities[item.id] = item.rarity;
     });
 }
 
@@ -64,16 +98,20 @@ export function onItemPurchased(item) {
 
 export function getShopItems() {
     normalizeShopState();
-    return [
-        ...CONFIG.EQUIPMENT.weapons,
-        ...CONFIG.EQUIPMENT.armor,
-        ...CONFIG.EQUIPMENT.charms
-    ];
+    return getAllEquipmentItems().map(item => {
+        const rarity = normalizeRarityId(item.rarity);
+        return {
+            ...item,
+            rarity,
+            rarityInfo: getRarityDefinition(rarity),
+            finalStats: calculateItemStats(item)
+        };
+    });
 }
 
 export function getItemById(itemId) {
-    if (!itemId) return null;
-    return getShopItems().find(item => item.id === itemId) || null;
+    normalizeShopState();
+    return getRawItemById(itemId);
 }
 
 export function isItemUnlocked(itemId) {

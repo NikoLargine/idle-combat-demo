@@ -5,6 +5,9 @@ import * as EnemyUnlocks from './enemyUnlocks.js';
 import * as Shop from './shop.js';
 import * as Achievements from './achievements.js';
 import * as Skills from './skills.js';
+import * as StatusEffects from './statusEffects.js';
+import { calculateItemStats, getRarityDefinition, normalizeRarityId } from './rarity.js';
+import * as Missions from './missions.js';
 
 function formatStat(value) {
     if (!Number.isFinite(value)) return '0';
@@ -13,14 +16,15 @@ function formatStat(value) {
 }
 
 function getShopStatText(item) {
+    const stats = item.finalStats || calculateItemStats(item);
     if (item.slot === 'weapon') {
-        return `Damage +${item.minHit || 0}-${item.maxHit || 0}`;
+        return `Damage +${stats.minHit || 0}-${stats.maxHit || 0}`;
     }
     if (item.slot === 'armor') {
-        return `Damage Reduction +${item.damageReduction || 0}%`;
+        return `Damage Reduction +${stats.damageReduction || 0}%`;
     }
     if (item.slot === 'charm') {
-        return `Accuracy +${item.accuracy || 0}, Evasion +${item.evasion || 0}`;
+        return `Accuracy +${stats.accuracy || 0}, Evasion +${stats.evasion || 0}`;
     }
     return '';
 }
@@ -36,8 +40,9 @@ export const UI = {
                      'player-eva-stat', 'player-dr-stat', 'player-wins-stat', 'player-deaths-stat',
                      'enemy-current-hp', 'enemy-max-hp', 'enemy-hp-fill', 'enemy-dmg-stat', 'enemy-acc-stat',
                      'enemy-eva-stat', 'enemy-name-display', 'equip-weapon', 'equip-armor', 'equip-charm',
-                     'enemy-selector', 'shop-list', 'skill-list', 'achievement-list', 'log-list', 'btn-toggle-combat', 'save-status', 'offline-modal',
-                     'offline-summary-text', 'btn-close-modal'];
+                     'enemy-selector', 'mission-list', 'mission-active-info', 'btn-end-mission', 'shop-list', 'skill-list',
+                     'achievement-list', 'log-list', 'btn-toggle-combat', 'save-status', 'offline-modal',
+                     'offline-summary-text', 'btn-close-modal', 'player-effects', 'enemy-effects'];
 
         ids.forEach(id => {
             this.elements[id] = document.getElementById(id);
@@ -69,9 +74,16 @@ export const UI = {
             selectElem.innerHTML = items.map(item => {
                 const selected = item.id === selectedId ? 'selected' : '';
                 const disabled = item.unlocked ? '' : 'disabled';
+                const rarityId = normalizeRarityId(item.rarity);
+                const rarity = getRarityDefinition(rarityId);
                 const suffix = item.unlocked ? '' : ` (Locked - ${item.cost} Gold)`;
-                return `<option value="${item.id}" ${selected} ${disabled}>${item.name}${suffix}</option>`;
+                return `<option value="${item.id}" class="rarity-${rarityId}" style="color:${rarity.color};" ${selected} ${disabled}>${item.name} [${rarity.name}]${suffix}</option>`;
             }).join('');
+
+            const selectedItem = items.find(item => item.id === selectedId) || null;
+            const selectedRarity = getRarityDefinition(selectedItem?.rarity);
+            selectElem.style.color = selectedRarity.color;
+            selectElem.style.borderColor = selectedRarity.color;
         };
 
         populateEquipSelect(this.elements['equip-weapon'], CONFIG.EQUIPMENT.weapons, 'weaponId');
@@ -80,35 +92,53 @@ export const UI = {
 
         // Populate Enemies with dynamic unlock state.
         EnemyUnlocks.checkEnemyUnlocks?.();
+        const missionActive = Missions.isMissionActive?.() || false;
 
-        if (!CONFIG.ENEMIES[GameState.enemy.id] || !CONFIG.ENEMIES[GameState.enemy.id].isUnlocked) {
+        if (!CONFIG.ENEMIES[GameState.enemy.id] || (!missionActive && !CONFIG.ENEMIES[GameState.enemy.id].isUnlocked)) {
             GameState.enemy.id = EnemyUnlocks.getFirstUnlockedEnemyId?.() || 'training_dummy';
             GameState.enemy.currentHp = CONFIG.ENEMIES[GameState.enemy.id].hp;
             GameState.enemy.tickTimer = 0;
+            GameState.enemy.activeEffects = [];
         }
 
         this.elements['enemy-selector'].innerHTML = Object.entries(CONFIG.ENEMIES).map(([id, enemy]) => {
             const selected = id === GameState.enemy.id ? 'selected' : '';
-            const isLocked = !enemy.isUnlocked;
+            const isLocked = !enemy.isUnlocked && !missionActive;
             const disabled = isLocked ? 'disabled' : '';
             const optionClass = isLocked ? 'enemy-locked' : '';
             const suffix = isLocked ? ` (${EnemyUnlocks.getEnemyUnlockText?.(id, enemy) || 'Locked'})` : '';
             return `<option value="${id}" class="${optionClass}" ${selected} ${disabled}>${enemy.name}${suffix}</option>`;
         }).join('');
+        this.elements['enemy-selector'].disabled = missionActive;
+        this.elements['enemy-selector'].title = missionActive
+            ? 'Enemy selection is disabled while a mission is active.'
+            : '';
     },
 
     updateAll() {
         this.updatePlayer();
+        this.renderMissions();
+        this.updateMissionPanel();
         this.renderSkills();
         this.renderShop();
         this.renderAchievements();
         this.updateEnemy();
+        this.renderStatusEffects();
         this.updateLog();
         this.updateCombatButton();
     },
 
     updatePlayer() {
-        const pStats = GameState.getPlayerStats();
+        const pStatsWithEffects = StatusEffects.applyStatEffectModifiers?.({
+            target: GameState.player,
+            targetType: 'player',
+            stats: GameState.getPlayerStats(),
+            context: { phase: 'ui' }
+        }) || GameState.getPlayerStats();
+        const pStats = Missions.applyAreaModifiersToStats?.({
+            targetType: 'player',
+            stats: pStatsWithEffects
+        }) || pStatsWithEffects;
         const level = Number.isFinite(GameState.player.level) ? Math.max(1, Math.floor(GameState.player.level)) : 1;
         const xp = Number.isFinite(GameState.player.xp) ? Math.max(0, Math.floor(GameState.player.xp)) : 0;
         const gold = Number.isFinite(GameState.player.gold) ? Math.max(0, Math.floor(GameState.player.gold)) : 0;
@@ -144,9 +174,21 @@ export const UI = {
     },
 
     updateEnemy() {
-        const eStats = CONFIG.ENEMIES[GameState.enemy.id];
+        const eStatsWithEffects = StatusEffects.applyStatEffectModifiers?.({
+            target: GameState.enemy,
+            targetType: 'enemy',
+            stats: CONFIG.ENEMIES[GameState.enemy.id],
+            context: { phase: 'ui' }
+        }) || CONFIG.ENEMIES[GameState.enemy.id];
+        const eStats = Missions.applyAreaModifiersToStats?.({
+            targetType: 'enemy',
+            stats: eStatsWithEffects
+        }) || eStatsWithEffects;
 
-        this.elements['enemy-name-display'].textContent = eStats.name;
+        const missionSummary = Missions.getActiveMissionSummary?.() || { active: false, waveText: '' };
+        this.elements['enemy-name-display'].textContent = missionSummary.active
+            ? `${eStats.name} (${missionSummary.waveText})`
+            : eStats.name;
 
         // HP values - ensure never negative
         const currentHp = Math.max(0, Math.ceil(GameState.enemy.currentHp));
@@ -163,6 +205,99 @@ export const UI = {
         this.elements['enemy-eva-stat'].textContent = eStats.evasion;
     },
 
+    renderMissions() {
+        const list = this.elements['mission-list'];
+        if (!list) return;
+
+        const missions = Missions.getMissionsForUI?.() || [];
+        list.innerHTML = missions.map(mission => {
+            const missionClass = mission.active
+                ? 'mission-active'
+                : (mission.unlocked ? 'mission-unlocked' : 'mission-locked');
+            const actionButton = mission.active
+                ? `<button class="btn-secondary" disabled>Active</button>`
+                : `<button class="btn-secondary" data-action="start-mission" data-mission-id="${mission.id}" ${mission.unlocked ? '' : 'disabled'}>${mission.unlocked ? 'Start' : 'Locked'}</button>`;
+            const requirementText = mission.unlocked ? 'Unlocked' : mission.unlockRequirementText;
+
+            return `
+                <div class="mission-item ${missionClass}">
+                    <div class="mission-item-header">
+                        <span class="mission-item-title">${mission.name}</span>
+                        <span class="mission-item-waves">${mission.waves} Waves</span>
+                    </div>
+                    <div class="mission-item-desc">${mission.description}</div>
+                    <div class="mission-item-modifier">${mission.areaModifierText}</div>
+                    <div class="mission-item-reward">${mission.rewardText}</div>
+                    <div class="mission-item-meta">${requirementText}</div>
+                    <div class="mission-item-actions">${actionButton}</div>
+                </div>
+            `;
+        }).join('');
+    },
+
+    updateMissionPanel() {
+        const info = this.elements['mission-active-info'];
+        const endBtn = this.elements['btn-end-mission'];
+        if (!info || !endBtn) return;
+
+        const summary = Missions.getActiveMissionSummary?.() || { active: false };
+        if (!summary.active) {
+            info.innerHTML = `<div class="mission-active-text">Mode: Free Fight</div>`;
+            endBtn.disabled = true;
+            return;
+        }
+
+        info.innerHTML = `
+            <div class="mission-active-text">Mission: ${summary.name}</div>
+            <div class="mission-active-wave">${summary.waveText}</div>
+            <div class="mission-active-modifier">${summary.modifierText}</div>
+        `;
+        endBtn.disabled = false;
+    },
+
+    renderStatusEffects() {
+        const playerContainer = this.elements['player-effects'];
+        const enemyContainer = this.elements['enemy-effects'];
+
+        if (playerContainer) {
+            const playerEffects = StatusEffects.getRenderableEffects?.(GameState.player) || [];
+            playerContainer.innerHTML = playerEffects.map(effect => {
+                const iconText = effect.icon || effect.name.slice(0, 3).toUpperCase();
+                const title = `${effect.name} (${effect.remaining.toFixed(1)}s): ${effect.description || ''}`;
+                return `
+                    <div class="status-effect status-${effect.type}" title="${title}">
+                        <div class="status-effect-top">
+                            <span class="status-effect-icon">${iconText}</span>
+                            <span class="status-effect-time">${effect.remaining.toFixed(1)}s</span>
+                        </div>
+                        <div class="status-effect-progress">
+                            <span style="width:${effect.progressPct}%;"></span>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        if (enemyContainer) {
+            const enemyEffects = StatusEffects.getRenderableEffects?.(GameState.enemy) || [];
+            enemyContainer.innerHTML = enemyEffects.map(effect => {
+                const iconText = effect.icon || effect.name.slice(0, 3).toUpperCase();
+                const title = `${effect.name} (${effect.remaining.toFixed(1)}s): ${effect.description || ''}`;
+                return `
+                    <div class="status-effect status-${effect.type}" title="${title}">
+                        <div class="status-effect-top">
+                            <span class="status-effect-icon">${iconText}</span>
+                            <span class="status-effect-time">${effect.remaining.toFixed(1)}s</span>
+                        </div>
+                        <div class="status-effect-progress">
+                            <span style="width:${effect.progressPct}%;"></span>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+    },
+
     renderShop() {
         const shopList = this.elements['shop-list'];
         if (!shopList) return;
@@ -172,7 +307,9 @@ export const UI = {
 
         shopList.innerHTML = items.map(item => {
             const unlocked = !!item.unlocked;
-            const itemClass = unlocked ? 'item-owned' : 'item-locked';
+            const rarityId = normalizeRarityId(item.rarity);
+            const rarityInfo = item.rarityInfo || getRarityDefinition(rarityId);
+            const itemClass = `${unlocked ? 'item-owned' : 'item-locked'} rarity-${rarityId}`;
             const slotLabel = item.slot.charAt(0).toUpperCase() + item.slot.slice(1);
             const cost = Number.isFinite(item.cost) ? Math.max(0, Math.floor(item.cost)) : 0;
             const canAfford = playerGold >= cost;
@@ -188,9 +325,10 @@ export const UI = {
             const statText = getShopStatText(item);
 
             return `
-                <div class="shop-item ${itemClass}">
+                <div class="shop-item ${itemClass}" style="--item-rarity-color: ${rarityInfo.color};">
                     <div class="shop-item-details">
                         <div class="shop-item-title">${item.name} <span class="shop-slot">[${slotLabel}]</span></div>
+                        <div class="shop-item-rarity">${rarityInfo.name}</div>
                         <div class="shop-item-stats">${statText}</div>
                         <div class="shop-item-status">${statusText}</div>
                     </div>

@@ -32,6 +32,59 @@ body { background-color: var(--bg-base); color: var(--text-main); line-height: 1
 .hp-bar-fill.enemy-hp { background: var(--hp-enemy); }
 .hp-text { font-size: 0.875rem; color: var(--text-muted); font-variant-numeric: tabular-nums; }
 
+.status-effects {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 0.35rem;
+    margin-top: 0.55rem;
+    min-height: 1.9rem;
+}
+.status-effect {
+    min-width: 86px;
+    padding: 0.2rem 0.35rem;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    background: rgba(15, 17, 21, 0.7);
+}
+.status-effect.status-buff {
+    border-color: rgba(34, 197, 94, 0.7);
+    background: rgba(34, 197, 94, 0.12);
+}
+.status-effect.status-debuff {
+    border-color: rgba(239, 68, 68, 0.7);
+    background: rgba(239, 68, 68, 0.12);
+}
+.status-effect-top {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.3rem;
+    font-size: 0.66rem;
+    line-height: 1.1;
+}
+.status-effect-icon {
+    letter-spacing: 0.04em;
+    font-weight: 700;
+}
+.status-effect-time {
+    color: var(--text-muted);
+    font-variant-numeric: tabular-nums;
+}
+.status-effect-progress {
+    margin-top: 0.2rem;
+    height: 3px;
+    border-radius: 3px;
+    overflow: hidden;
+    background: rgba(148, 163, 184, 0.25);
+}
+.status-effect-progress > span {
+    display: block;
+    width: 100%;
+    height: 100%;
+    background: #f8fafc;
+}
+
 /* XP Progression */
 .xp-section { margin: -0.75rem 0 1.5rem; }
 .xp-row {
@@ -60,10 +113,47 @@ body { background-color: var(--bg-base); color: var(--text-main); line-height: 1
 select, button { width: 100%; padding: 0.75rem; background: var(--bg-base); border: 1px solid var(--border); color: var(--text-main); border-radius: 4px; margin-bottom: 0.5rem; cursor: pointer; outline: none; }
 select:focus { border-color: var(--accent); }
 option.enemy-locked { color: var(--text-muted); }
+option.rarity-common { color: #cccccc; }
+option.rarity-uncommon { color: #4caf50; }
+option.rarity-rare { color: #2196f3; }
+option.rarity-epic { color: #9c27b0; }
+option.rarity-legendary { color: #ff9800; }
 
 .btn-primary { background: var(--accent); border-color: var(--accent); font-weight: 600; transition: background 0.2s; }
 .btn-primary:hover { background: var(--accent-hover); }
 .btn-secondary { width: auto; padding: 0.5rem 1rem; font-size: 0.875rem; margin-left: 0.5rem; }
+
+/* Missions */
+.mission-section { border-bottom: 1px solid var(--border); margin-bottom: 0.9rem; padding-bottom: 0.9rem; }
+.mission-list { display: flex; flex-direction: column; gap: 0.45rem; margin-bottom: 0.6rem; max-height: 210px; overflow-y: auto; }
+.mission-item {
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 0.55rem;
+    background: rgba(15, 17, 21, 0.45);
+}
+.mission-item.mission-locked { opacity: 0.62; }
+.mission-item.mission-unlocked { border-color: #2563eb; }
+.mission-item.mission-active { border-color: #16a34a; background: rgba(22, 163, 74, 0.12); }
+.mission-item-header { display: flex; justify-content: space-between; gap: 0.4rem; font-size: 0.82rem; font-weight: 600; }
+.mission-item-title { color: var(--text-main); }
+.mission-item-waves { color: #93c5fd; }
+.mission-item-desc { font-size: 0.75rem; color: var(--text-muted); }
+.mission-item-modifier { font-size: 0.73rem; color: #fca5a5; margin-top: 0.1rem; }
+.mission-item-reward { font-size: 0.73rem; color: #86efac; }
+.mission-item-meta { font-size: 0.71rem; color: var(--text-muted); margin-top: 0.1rem; }
+.mission-item-actions { margin-top: 0.25rem; display: flex; justify-content: flex-end; }
+.mission-item-actions .btn-secondary { margin: 0; }
+.mission-active-info {
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 0.45rem;
+    background: rgba(15, 17, 21, 0.4);
+    margin-bottom: 0.45rem;
+}
+.mission-active-text { font-size: 0.78rem; font-weight: 600; }
+.mission-active-wave { font-size: 0.73rem; color: #93c5fd; }
+.mission-active-modifier { font-size: 0.73rem; color: #fca5a5; }
 
 /* Combat Log */
 .combat-log { height: 150px; overflow-y: hidden; border-top: 1px solid var(--border); padding-top: 1rem; margin-top: 1rem; }
@@ -86,12 +176,23 @@ option.enemy-locked { color: var(--text-muted); }
 .shop-item.item-owned { border-color: #16a34a; }
 .shop-item-details { flex: 1; min-width: 0; }
 .shop-item-title { font-size: 0.9rem; font-weight: 600; }
+.shop-item-rarity { font-size: 0.74rem; color: var(--item-rarity-color, #cccccc); font-weight: 600; }
 .shop-slot { color: var(--text-muted); font-size: 0.75rem; }
 .shop-item-stats { color: var(--text-muted); font-size: 0.8rem; }
 .shop-item-status { color: #fbbf24; font-size: 0.8rem; margin-top: 0.15rem; }
 .shop-item.item-owned .shop-item-status { color: #22c55e; }
 .shop-item-actions { display: grid; grid-template-columns: 1fr; gap: 0.35rem; width: 112px; }
 .shop-item-actions .btn-secondary { margin: 0; width: 100%; padding: 0.45rem 0.5rem; font-size: 0.8rem; }
+.shop-item.rarity-common { border-left: 3px solid #cccccc; }
+.shop-item.rarity-uncommon { border-left: 3px solid #4caf50; }
+.shop-item.rarity-rare { border-left: 3px solid #2196f3; }
+.shop-item.rarity-epic { border-left: 3px solid #9c27b0; }
+.shop-item.rarity-legendary { border-left: 3px solid #ff9800; }
+.shop-item.rarity-common .shop-item-title { color: #cccccc; }
+.shop-item.rarity-uncommon .shop-item-title { color: #4caf50; }
+.shop-item.rarity-rare .shop-item-title { color: #2196f3; }
+.shop-item.rarity-epic .shop-item-title { color: #9c27b0; }
+.shop-item.rarity-legendary .shop-item-title { color: #ff9800; }
 
 /* Skills */
 .skill-section { border-top: 1px solid var(--border); margin-top: 1rem; padding-top: 1rem; }

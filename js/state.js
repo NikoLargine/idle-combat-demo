@@ -1,4 +1,5 @@
 import { CONFIG } from './config.js';
+import { calculateItemStats } from './rarity.js';
 
 export const GameState = {
     player: {
@@ -12,12 +13,14 @@ export const GameState = {
         killStats: {},
         wins: 0,
         deaths: 0,
-        tickTimer: 0
+        tickTimer: 0,
+        activeEffects: []
     },
     enemy: {
         id: 'training_dummy',
         currentHp: CONFIG.ENEMIES['training_dummy'].hp,
-        tickTimer: 0
+        tickTimer: 0,
+        activeEffects: []
     },
     equipment: {
         weaponId: 'w1',
@@ -29,15 +32,24 @@ export const GameState = {
             w1: true,
             a1: true,
             c1: true
-        }
+        },
+        itemRarities: {}
     },
     achievements: {},
+    mission: {
+        currentMissionId: null,
+        currentWave: 0,
+        accumulatedXp: 0,
+        accumulatedGold: 0,
+        lastResult: null
+    },
     combat: {
         isActive: false,
         log: []
     },
     system: {
-        lastSaveTime: Date.now()
+        lastSaveTime: Date.now(),
+        unlockedPermanentEffects: {}
     },
 
     getPlayerStats() {
@@ -48,15 +60,18 @@ export const GameState = {
         const weapon = CONFIG.EQUIPMENT.weapons.find(w => w.id === this.equipment.weaponId) || {};
         const armor = CONFIG.EQUIPMENT.armor.find(a => a.id === this.equipment.armorId) || {};
         const charm = CONFIG.EQUIPMENT.charms.find(c => c.id === this.equipment.charmId) || {};
+        const weaponStats = calculateItemStats(weapon);
+        const armorStats = calculateItemStats(armor);
+        const charmStats = calculateItemStats(charm);
 
         return {
             hp: base.hp + (levelsGained * statGain.maxHp),
             attackInterval: base.attackInterval,
-            minHit: base.minHit + (levelsGained * statGain.damage) + (weapon.minHit || 0),
-            maxHit: base.maxHit + (levelsGained * statGain.damage) + (weapon.maxHit || 0),
-            accuracy: base.accuracy + (levelsGained * statGain.accuracy) + (charm.accuracy || 0),
-            evasion: base.evasion + (levelsGained * statGain.evasion) + (charm.evasion || 0),
-            damageReduction: base.damageReduction + (armor.damageReduction || 0)
+            minHit: base.minHit + (levelsGained * statGain.damage) + (weaponStats.minHit || 0),
+            maxHit: base.maxHit + (levelsGained * statGain.damage) + (weaponStats.maxHit || 0),
+            accuracy: base.accuracy + (levelsGained * statGain.accuracy) + (charmStats.accuracy || 0),
+            evasion: base.evasion + (levelsGained * statGain.evasion) + (charmStats.evasion || 0),
+            damageReduction: base.damageReduction + (armorStats.damageReduction || 0)
         };
     },
 

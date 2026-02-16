@@ -117,6 +117,9 @@ export const CONFIG = {
             attackInterval: 1500,
             accuracy: 70,
             evasion: 60,
+            onHitEffects: [
+                { effectId: 'exposed', chance: 0.25, duration: 4 }
+            ],
             unlockRequirement: { type: "kills", enemyId: "shadow_vermin", value: 20 },
             isUnlocked: false
         },
@@ -146,27 +149,211 @@ export const CONFIG = {
         }
     },
 
+    MISSIONS: [
+        {
+            id: 'training_patrol',
+            name: 'Training Patrol',
+            description: 'Sweep the outskirts and eliminate roaming threats.',
+            waves: 3,
+            enemyPool: ['training_dummy', 'shadow_vermin'],
+            areaModifier: {
+                type: 'player_stat',
+                stat: 'evasion',
+                value: -0.05
+            },
+            reward: {
+                gold: 60,
+                xpBonusPercent: 0.05
+            },
+            unlockRequirement: {
+                type: 'level',
+                value: 1
+            }
+        },
+        {
+            id: 'vermin_breakline',
+            name: 'Vermin Breakline',
+            description: 'Push through fast attackers before they overrun the line.',
+            waves: 4,
+            enemyPool: ['shadow_vermin', 'mountain_orc'],
+            areaModifier: {
+                type: 'enemy_stat',
+                stat: 'accuracy',
+                value: 0.08
+            },
+            reward: {
+                gold: 150,
+                xpBonusPercent: 0.1
+            },
+            unlockRequirement: {
+                type: 'level',
+                value: 4
+            }
+        },
+        {
+            id: 'void_breach',
+            name: 'Void Breach',
+            description: 'Stabilize the breach while elite foes surge forward.',
+            waves: 5,
+            enemyPool: ['void_stalker', 'iron_sentinel'],
+            areaModifier: {
+                type: 'player_stat',
+                stat: 'evasion',
+                value: -0.12
+            },
+            reward: {
+                gold: 320,
+                xpBonusPercent: 0.15
+            },
+            unlockRequirement: {
+                type: 'level',
+                value: 7
+            }
+        }
+    ],
+
     EQUIPMENT: {
         weapons: [
-            { id: 'w1', name: 'Rusted Blade', slot: 'weapon', minHit: 2, maxHit: 5, cost: 0, unlocked: false },
-            { id: 'w2', name: 'Steel Falchion', slot: 'weapon', minHit: 10, maxHit: 18, cost: 150, unlocked: false },
-            { id: 'w3', name: 'Heavy Greataxe', slot: 'weapon', minHit: 35, maxHit: 60, cost: 500, unlocked: false },
-            { id: 'w4', name: 'Sun-Forged Spear', slot: 'weapon', minHit: 55, maxHit: 90, cost: 1200, unlocked: false },
-            { id: 'w5', name: 'Demon-Slayer Katana', slot: 'weapon', minHit: 120, maxHit: 200, cost: 3000, unlocked: false }
+            {
+                id: 'w1',
+                name: 'Rusted Blade',
+                slot: 'weapon',
+                baseStats: { minHit: 2, maxHit: 5 },
+                rarity: 'common',
+                cost: 0,
+                unlocked: false
+            },
+            {
+                id: 'w2',
+                name: 'Steel Falchion',
+                slot: 'weapon',
+                baseStats: { minHit: 10, maxHit: 18 },
+                rarity: 'common',
+                cost: 150,
+                unlocked: false
+            },
+            {
+                id: 'w3',
+                name: 'Heavy Greataxe',
+                slot: 'weapon',
+                baseStats: { minHit: 35, maxHit: 60 },
+                rarity: 'common',
+                cost: 500,
+                unlocked: false
+            },
+            {
+                id: 'w4',
+                name: 'Sun-Forged Spear',
+                slot: 'weapon',
+                baseStats: { minHit: 55, maxHit: 90 },
+                rarity: 'common',
+                cost: 1200,
+                unlocked: false,
+                onHitEffects: [{ effectId: 'bleed', chance: 0.2, duration: 5 }]
+            },
+            {
+                id: 'w5',
+                name: 'Demon-Slayer Katana',
+                slot: 'weapon',
+                baseStats: { minHit: 120, maxHit: 200 },
+                rarity: 'common',
+                cost: 3000,
+                unlocked: false
+            }
         ],
         armor: [
-            { id: 'a1', name: 'Ragged Tunic', slot: 'armor', damageReduction: 0, cost: 0, unlocked: false },
-            { id: 'a2', name: 'Hardened Leather', slot: 'armor', damageReduction: 10, cost: 180, unlocked: false },
-            { id: 'a3', name: 'Full Plate Mail', slot: 'armor', damageReduction: 25, cost: 650, unlocked: false },
-            { id: 'a4', name: 'Enchanted Aegis', slot: 'armor', damageReduction: 45, cost: 1500, unlocked: false },
-            { id: 'a5', name: "God-King's Mantle", slot: 'armor', damageReduction: 75, cost: 4000, unlocked: false }
+            {
+                id: 'a1',
+                name: 'Ragged Tunic',
+                slot: 'armor',
+                baseStats: { damageReduction: 0 },
+                rarity: 'common',
+                cost: 0,
+                unlocked: false
+            },
+            {
+                id: 'a2',
+                name: 'Hardened Leather',
+                slot: 'armor',
+                baseStats: { damageReduction: 10 },
+                rarity: 'common',
+                cost: 180,
+                unlocked: false
+            },
+            {
+                id: 'a3',
+                name: 'Full Plate Mail',
+                slot: 'armor',
+                baseStats: { damageReduction: 25 },
+                rarity: 'common',
+                cost: 650,
+                unlocked: false
+            },
+            {
+                id: 'a4',
+                name: 'Enchanted Aegis',
+                slot: 'armor',
+                baseStats: { damageReduction: 45 },
+                rarity: 'common',
+                cost: 1500,
+                unlocked: false
+            },
+            {
+                id: 'a5',
+                name: "God-King's Mantle",
+                slot: 'armor',
+                baseStats: { damageReduction: 75 },
+                rarity: 'common',
+                cost: 4000,
+                unlocked: false
+            }
         ],
         charms: [
-            { id: 'c1', name: 'None', slot: 'charm', accuracy: 0, evasion: 0, cost: 0, unlocked: false },
-            { id: 'c2', name: 'Focus Amulet', slot: 'charm', accuracy: 30, evasion: 0, cost: 140, unlocked: false },
-            { id: 'c3', name: 'Shadow Cloak', slot: 'charm', accuracy: 0, evasion: 40, cost: 300, unlocked: false },
-            { id: 'c4', name: 'Eye of the Storm', slot: 'charm', accuracy: 60, evasion: 20, cost: 900, unlocked: false },
-            { id: 'c5', name: 'Infinity Sigil', slot: 'charm', accuracy: 150, evasion: 100, cost: 2600, unlocked: false }
+            {
+                id: 'c1',
+                name: 'None',
+                slot: 'charm',
+                baseStats: { accuracy: 0, evasion: 0 },
+                rarity: 'common',
+                cost: 0,
+                unlocked: false
+            },
+            {
+                id: 'c2',
+                name: 'Focus Amulet',
+                slot: 'charm',
+                baseStats: { accuracy: 30, evasion: 0 },
+                rarity: 'common',
+                cost: 140,
+                unlocked: false
+            },
+            {
+                id: 'c3',
+                name: 'Shadow Cloak',
+                slot: 'charm',
+                baseStats: { accuracy: 0, evasion: 40 },
+                rarity: 'common',
+                cost: 300,
+                unlocked: false
+            },
+            {
+                id: 'c4',
+                name: 'Eye of the Storm',
+                slot: 'charm',
+                baseStats: { accuracy: 60, evasion: 20 },
+                rarity: 'common',
+                cost: 900,
+                unlocked: false
+            },
+            {
+                id: 'c5',
+                name: 'Infinity Sigil',
+                slot: 'charm',
+                baseStats: { accuracy: 150, evasion: 100 },
+                rarity: 'common',
+                cost: 2600,
+                unlocked: false
+            }
         ]
     }
 };

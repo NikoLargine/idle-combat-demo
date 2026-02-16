@@ -8,6 +8,8 @@ import * as Economy from './economy.js';
 import * as Leveling from './leveling.js';
 import * as Achievements from './achievements.js';
 import * as Skills from './skills.js';
+import * as StatusEffects from './statusEffects.js';
+import * as Missions from './missions.js';
 
 document.addEventListener('DOMContentLoaded', () => {
     Achievements.configureAchievementRewardHandlers?.({
@@ -30,10 +32,44 @@ document.addEventListener('DOMContentLoaded', () => {
     Skills.setSkillUnlockedListener?.((skill) => {
         GameState.addLog(`Skill unlocked: ${skill.name}`);
     });
+    StatusEffects.setEffectAppliedListener?.(({ targetType, effect, refreshed, silent }) => {
+        if (silent) return;
+        const targetLabel = targetType === 'player' ? 'Player' : 'Enemy';
+        const actionText = refreshed ? 'refreshed on' : 'applied to';
+        GameState.addLog(`${effect.name} ${actionText} ${targetLabel}.`);
+    });
+    StatusEffects.setEffectExpiredListener?.(({ targetType, effect, silent }) => {
+        if (silent) return;
+        const targetLabel = targetType === 'player' ? 'Player' : 'Enemy';
+        GameState.addLog(`${effect.name} expired on ${targetLabel}.`);
+    });
+    Missions.setMissionStartedListener?.(({ mission, currentWave, totalWaves, silent }) => {
+        if (silent) return;
+        GameState.addLog(`Mission started: ${mission.name} (Wave ${currentWave}/${totalWaves})`);
+    });
+    Missions.setMissionWaveListener?.(({ mission, currentWave, totalWaves, silent }) => {
+        if (silent) return;
+        GameState.addLog(`${mission.name}: Wave ${currentWave}/${totalWaves}`);
+    });
+    Missions.setMissionCompletedListener?.((result) => {
+        if (!result || result.silent) return;
+        GameState.addLog(`Mission Complete: ${result.missionName}`);
+        UI.showModal(
+            'Mission Complete',
+            `${result.missionName} cleared. Bonus rewards: +${result.bonusXp} XP, +${result.bonusGold} gold.`
+        );
+    });
+    Missions.setMissionFailedListener?.((result) => {
+        if (!result || result.silent) return;
+        GameState.addLog(`Mission Failed: ${result.missionName}`);
+    });
 
     // 1. Initialize Systems
     Persistence.load();
     Skills.normalizePlayerSkills?.(GameState.player);
+    Missions.normalizeMissionState?.();
+    StatusEffects.normalizeStatusState?.();
+    StatusEffects.clearAllTemporaryEffects?.();
     Skills.checkSkillUnlocks?.('level');
     Skills.checkSkillUnlocks?.('achievement');
     UI.init();
@@ -149,6 +185,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Enemy Selection
     document.getElementById('enemy-selector').addEventListener('change', (e) => {
+        if (Missions.isMissionActive?.()) {
+            UI.updateAll();
+            return;
+        }
+
         if (!CONFIG.ENEMIES[e.target.value] || !CONFIG.ENEMIES[e.target.value].isUnlocked) {
             UI.populateDropdowns();
             return;
@@ -158,6 +199,35 @@ document.addEventListener('DOMContentLoaded', () => {
         GameState.enemy.id = e.target.value;
         GameState.enemy.currentHp = CONFIG.ENEMIES[e.target.value].hp;
         GameState.enemy.tickTimer = 0;
+        GameState.enemy.activeEffects = [];
+        UI.updateAll();
+    });
+
+    // Mission interactions
+    document.getElementById('mission-list').addEventListener('click', (e) => {
+        if (!(e.target instanceof Element)) return;
+        const button = e.target.closest('button[data-action][data-mission-id]');
+        if (!button) return;
+
+        const action = button.dataset.action;
+        const missionId = button.dataset.missionId;
+        if (!missionId) return;
+
+        if (action === 'start-mission') {
+            const started = Missions.startMission?.(missionId);
+            if (started) {
+                UI.populateDropdowns();
+                UI.updateAll();
+            }
+        }
+    });
+
+    document.getElementById('btn-end-mission').addEventListener('click', () => {
+        const result = Missions.endMission?.({ reason: 'manual' });
+        if (result?.ended) {
+            GameState.addLog(`Mission ended: ${result.missionName}`);
+        }
+        UI.populateDropdowns();
         UI.updateAll();
     });
 
