@@ -2,6 +2,7 @@ import { CONFIG } from './config.js';
 import { GameState } from './state.js';
 import * as EnemyUnlocks from './enemyUnlocks.js';
 import * as Achievements from './achievements.js';
+import * as Skills from './skills.js';
 
 const MIN_LEVEL = 1;
 
@@ -28,6 +29,7 @@ export function normalizePlayerProgression(player) {
 
 export function onLevelUp(newLevel) {
     Achievements.onLevelUp?.(newLevel);
+    Skills.checkSkillUnlocks?.('level', newLevel);
 }
 
 export function levelUp() {
