@@ -42,7 +42,8 @@ export const UI = {
                      'enemy-eva-stat', 'enemy-name-display', 'equip-weapon', 'equip-armor', 'equip-charm',
                      'enemy-selector', 'mission-list', 'mission-active-info', 'btn-end-mission', 'shop-list', 'skill-list',
                      'achievement-list', 'log-list', 'btn-toggle-combat', 'save-status', 'offline-modal',
-                     'offline-summary-text', 'btn-close-modal', 'player-effects', 'enemy-effects'];
+                     'offline-summary-text', 'btn-close-modal', 'player-effects', 'enemy-effects',
+                     'tab-player-wins', 'tab-player-deaths', 'tab-target-name'];
 
         ids.forEach(id => {
             this.elements[id] = document.getElementById(id);
@@ -116,16 +117,25 @@ export const UI = {
     },
 
     updateAll() {
-        this.updatePlayer();
+        this.renderPlayerStats();
+        this.renderCombat();
         this.renderMissions();
         this.updateMissionPanel();
         this.renderSkills();
         this.renderShop();
         this.renderAchievements();
-        this.updateEnemy();
         this.renderStatusEffects();
         this.updateLog();
         this.updateCombatButton();
+        this.renderStatsTab();
+    },
+
+    renderPlayerStats() {
+        this.updatePlayer();
+    },
+
+    renderCombat() {
+        this.updateEnemy();
     },
 
     updatePlayer() {
@@ -255,6 +265,19 @@ export const UI = {
         endBtn.disabled = false;
     },
 
+    renderStatsTab() {
+        if (this.elements['tab-player-wins']) {
+            this.elements['tab-player-wins'].textContent = GameState.player.wins;
+        }
+        if (this.elements['tab-player-deaths']) {
+            this.elements['tab-player-deaths'].textContent = GameState.player.deaths;
+        }
+        if (this.elements['tab-target-name']) {
+            const activeEnemy = CONFIG.ENEMIES[GameState.enemy.id];
+            this.elements['tab-target-name'].textContent = activeEnemy?.name || 'Unknown';
+        }
+    },
+
     renderStatusEffects() {
         const playerContainer = this.elements['player-effects'];
         const enemyContainer = this.elements['enemy-effects'];
@@ -325,7 +348,7 @@ export const UI = {
             const statText = getShopStatText(item);
 
             return `
-                <div class="shop-item ${itemClass}" style="--item-rarity-color: ${rarityInfo.color};">
+                <div class="shop-item ${itemClass}" style="--item-rarity-color: ${rarityInfo.color};" title="${statText}">
                     <div class="shop-item-details">
                         <div class="shop-item-title">${item.name} <span class="shop-slot">[${slotLabel}]</span></div>
                         <div class="shop-item-rarity">${rarityInfo.name}</div>

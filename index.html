@@ -17,9 +17,10 @@
         </div>
     </header>
 
-    <main class="game-container">
-        <section class="panel player-panel">
+    <main id="game-container">
+        <section id="left-panel" class="panel">
             <h2>Player</h2>
+
             <div class="avatar-container" id="player-avatar">
                 <div class="hp-bar-bg">
                     <div class="hp-bar-fill" id="player-hp-fill"></div>
@@ -28,66 +29,43 @@
                 <div class="status-effects" id="player-effects"></div>
             </div>
 
-            <div class="xp-section">
-                <div class="xp-row">
-                    <span>Level <span id="player-level-stat">1</span></span>
-                    <span><span id="player-xp-stat">0</span> / <span id="player-xp-required-stat">100</span> XP</span>
+            <div class="xp-section panel-subsection">
+                <div class="level-row">
+                    <span>Level <strong id="player-level-stat">1</strong></span>
+                    <span class="gold-display">💰 <strong id="player-gold-stat">0</strong></span>
                 </div>
-                <div class="xp-row gold-row">
-                    <span>Gold</span>
-                    <span id="player-gold-stat">0</span>
+                <div class="xp-row">
+                    <span>XP Progress</span>
+                    <span><span id="player-xp-stat">0</span> / <span id="player-xp-required-stat">100</span></span>
                 </div>
                 <div class="xp-bar-bg">
                     <div class="xp-bar-fill" id="player-xp-fill"></div>
                 </div>
             </div>
 
-            <div class="stats-grid">
-                <span>Damage:</span> <span id="player-dmg-stat">0-0</span>
-                <span>Accuracy:</span> <span id="player-acc-stat">0</span>
-                <span>Evasion:</span> <span id="player-eva-stat">0</span>
-                <span>Reduction:</span> <span id="player-dr-stat">0%</span>
-                <span>Wins:</span> <span id="player-wins-stat">0</span>
-                <span>Deaths:</span> <span id="player-deaths-stat">0</span>
+            <div class="stats-grid panel-subsection">
+                <span>Damage</span><span id="player-dmg-stat">0-0</span>
+                <span>Accuracy</span><span id="player-acc-stat">0</span>
+                <span>Evasion</span><span id="player-eva-stat">0</span>
+                <span>Reduction</span><span id="player-dr-stat">0%</span>
+                <span>Wins</span><span id="player-wins-stat">0</span>
+                <span>Deaths</span><span id="player-deaths-stat">0</span>
             </div>
 
-            <div class="equipment-section">
-                <h3>Equipment</h3>
-                <select id="equip-weapon"></select>
-                <select id="equip-armor"></select>
-                <select id="equip-charm"></select>
-            </div>
-
-            <div class="shop-section">
-                <h3>Shop</h3>
-                <div id="shop-list" class="shop-list"></div>
-            </div>
-
-            <div class="skill-section">
+            <div class="skill-section panel-subsection">
                 <h3>Skills</h3>
                 <div id="skill-list" class="skill-list"></div>
             </div>
-
-            <div class="achievement-section">
-                <h3>Achievements</h3>
-                <div id="achievement-list" class="achievement-list"></div>
-            </div>
-
-            <div class="combat-log">
-                <h3>Log</h3>
-                <ul id="log-list"></ul>
-            </div>
         </section>
 
-        <section class="panel enemy-panel">
-            <h2>Target</h2>
-            <div class="mission-section">
-                <h3>Missions</h3>
-                <div id="mission-list" class="mission-list"></div>
-                <div id="mission-active-info" class="mission-active-info"></div>
-                <button id="btn-end-mission" class="btn-secondary" disabled>Abandon Mission</button>
+        <section id="right-panel" class="panel">
+            <h2>Combat</h2>
+            <div class="mission-active-info" id="mission-active-info"></div>
+
+            <div class="target-select-row">
+                <label for="enemy-selector">Target</label>
+                <select id="enemy-selector" class="enemy-dropdown"></select>
             </div>
-            <select id="enemy-selector" class="enemy-dropdown"></select>
 
             <div class="avatar-container" id="enemy-avatar">
                 <h3 id="enemy-name-display">Training Dummy</h3>
@@ -98,14 +76,68 @@
                 <div class="status-effects" id="enemy-effects"></div>
             </div>
 
-            <div class="stats-grid">
-                <span>Damage:</span> <span id="enemy-dmg-stat">0-0</span>
-                <span>Accuracy:</span> <span id="enemy-acc-stat">0</span>
-                <span>Evasion:</span> <span id="enemy-eva-stat">0</span>
+            <div class="stats-grid compact">
+                <span>Damage</span><span id="enemy-dmg-stat">0-0</span>
+                <span>Accuracy</span><span id="enemy-acc-stat">0</span>
+                <span>Evasion</span><span id="enemy-eva-stat">0</span>
             </div>
 
             <div class="action-section">
                 <button id="btn-toggle-combat" class="btn-primary">Engage Combat</button>
+                <button id="btn-end-mission" class="btn-secondary" disabled>Abandon Mission</button>
+            </div>
+
+            <div class="combat-log panel-subsection">
+                <h3>Combat Log</h3>
+                <ul id="log-list"></ul>
+            </div>
+        </section>
+
+        <section id="bottom-tabs" class="panel">
+            <div class="tab-list" role="tablist" aria-label="Systems Tabs">
+                <button class="tab tab-active" data-tab-target="tab-shop" aria-selected="true">Shop</button>
+                <button class="tab" data-tab-target="tab-equipment" aria-selected="false">Equipment</button>
+                <button class="tab" data-tab-target="tab-missions" aria-selected="false">Missions</button>
+                <button class="tab" data-tab-target="tab-achievements" aria-selected="false">Achievements</button>
+                <button class="tab" data-tab-target="tab-stats" aria-selected="false">Stats</button>
+            </div>
+
+            <div class="tab-panels">
+                <div id="tab-shop" class="tab-panel tab-visible">
+                    <h3>Shop</h3>
+                    <div id="shop-list" class="shop-list"></div>
+                </div>
+
+                <div id="tab-equipment" class="tab-panel">
+                    <h3>Equipment</h3>
+                    <div class="equipment-controls">
+                        <label for="equip-weapon">Weapon</label>
+                        <select id="equip-weapon"></select>
+                        <label for="equip-armor">Armor</label>
+                        <select id="equip-armor"></select>
+                        <label for="equip-charm">Charm</label>
+                        <select id="equip-charm"></select>
+                    </div>
+                </div>
+
+                <div id="tab-missions" class="tab-panel">
+                    <h3>Missions</h3>
+                    <div id="mission-list" class="mission-list"></div>
+                </div>
+
+                <div id="tab-achievements" class="tab-panel">
+                    <h3>Achievements</h3>
+                    <div id="achievement-list" class="achievement-list"></div>
+                </div>
+
+                <div id="tab-stats" class="tab-panel">
+                    <h3>Session Stats</h3>
+                    <div class="stats-grid">
+                        <span>Wins</span><span id="tab-player-wins">0</span>
+                        <span>Deaths</span><span id="tab-player-deaths">0</span>
+                        <span>Current Target</span><span id="tab-target-name">Training Dummy</span>
+                    </div>
+                </div>
             </div>
         </section>
     </main>
