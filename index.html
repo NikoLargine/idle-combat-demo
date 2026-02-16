@@ -27,6 +27,20 @@
                 <div class="hp-text"><span id="player-current-hp">100</span> / <span id="player-max-hp">100</span></div>
             </div>
 
+            <div class="xp-section">
+                <div class="xp-row">
+                    <span>Level <span id="player-level-stat">1</span></span>
+                    <span><span id="player-xp-stat">0</span> / <span id="player-xp-required-stat">100</span> XP</span>
+                </div>
+                <div class="xp-row gold-row">
+                    <span>Gold</span>
+                    <span id="player-gold-stat">0</span>
+                </div>
+                <div class="xp-bar-bg">
+                    <div class="xp-bar-fill" id="player-xp-fill"></div>
+                </div>
+            </div>
+
             <div class="stats-grid">
                 <span>Damage:</span> <span id="player-dmg-stat">0-0</span>
                 <span>Accuracy:</span> <span id="player-acc-stat">0</span>
@@ -41,6 +55,21 @@
                 <select id="equip-weapon"></select>
                 <select id="equip-armor"></select>
                 <select id="equip-charm"></select>
+            </div>
+
+            <div class="shop-section">
+                <h3>Shop</h3>
+                <div id="shop-list" class="shop-list"></div>
+            </div>
+
+            <div class="skill-section">
+                <h3>Skills</h3>
+                <div id="skill-list" class="skill-list"></div>
+            </div>
+
+            <div class="achievement-section">
+                <h3>Achievements</h3>
+                <div id="achievement-list" class="achievement-list"></div>
             </div>
 
             <div class="combat-log">

@@ -2,6 +2,12 @@ import { GameState } from './state.js';
 import { CONFIG } from './config.js';
 import { CombatEngine } from './combat.js';
 import { UI } from './ui.js';
+import * as Leveling from './leveling.js';
+import * as Economy from './economy.js';
+import * as EnemyUnlocks from './enemyUnlocks.js';
+import * as Shop from './shop.js';
+import * as Achievements from './achievements.js';
+import * as Skills from './skills.js';
 
 export const Persistence = {
     SAVE_KEY: 'idle_combat_save_v1',
@@ -30,6 +36,28 @@ export const Persistence = {
             if (typeof GameState.player.deaths === 'undefined') {
                 GameState.player.deaths = 0;
             }
+            Leveling.normalizePlayerProgression?.(GameState.player);
+            Economy.normalizePlayerEconomy?.(GameState.player);
+            Skills.normalizePlayerSkills?.(GameState.player);
+            Skills.resetSkillRuntimeState?.();
+            EnemyUnlocks.normalizeKillStats?.(GameState.player);
+            Shop.normalizeShopState?.();
+            Achievements.normalizeAchievementsState?.();
+            EnemyUnlocks.checkEnemyUnlocks?.();
+
+            if (!CONFIG.ENEMIES[GameState.enemy.id] || !CONFIG.ENEMIES[GameState.enemy.id].isUnlocked) {
+                GameState.enemy.id = EnemyUnlocks.getFirstUnlockedEnemyId?.() || 'training_dummy';
+                GameState.enemy.currentHp = CONFIG.ENEMIES[GameState.enemy.id].hp;
+                GameState.enemy.tickTimer = 0;
+            }
+
+            // Clamp HP to the current level-scaled max HP.
+            const maxHp = GameState.getPlayerStats().hp;
+            if (!Number.isFinite(GameState.player.currentHp)) {
+                GameState.player.currentHp = maxHp;
+            } else {
+                GameState.player.currentHp = Math.max(0, Math.min(GameState.player.currentHp, maxHp));
+            }
 
             this.calculateOfflineProgress();
         } catch (e) {
@@ -44,6 +72,10 @@ export const Persistence = {
 
             GameState.player.currentHp = CONFIG.PLAYER_BASE.hp;
             GameState.player.level = 1;
+            GameState.player.xp = 0;
+            GameState.player.gold = 0;
+            GameState.player.skills = { learned: {} };
+            GameState.player.killStats = {};
             GameState.player.wins = 0;
             GameState.player.deaths = 0;
             GameState.player.tickTimer = 0;
@@ -51,11 +83,18 @@ export const Persistence = {
             GameState.equipment.weaponId = 'w1';
             GameState.equipment.armorId = 'a1';
             GameState.equipment.charmId = 'c1';
+            GameState.shop = { itemUnlocks: { w1: true, a1: true, c1: true } };
+            GameState.achievements = {};
 
             GameState.combat.isActive = false;
             GameState.combat.log = [];
 
             GameState.system.lastSaveTime = Date.now();
+            Shop.normalizeShopState?.();
+            Achievements.normalizeAchievementsState?.();
+            Skills.normalizePlayerSkills?.(GameState.player);
+            Skills.resetSkillRuntimeState?.();
+            EnemyUnlocks.checkEnemyUnlocks?.();
         }
     },
 
@@ -74,6 +113,10 @@ export const Persistence = {
         // Reset player state
         GameState.player.currentHp = CONFIG.PLAYER_BASE.hp;
         GameState.player.level = 1;
+        GameState.player.xp = 0;
+        GameState.player.gold = 0;
+        GameState.player.skills = { learned: {} };
+        GameState.player.killStats = {};
         GameState.player.wins = 0;
         GameState.player.deaths = 0;
         GameState.player.tickTimer = 0;
@@ -82,6 +125,8 @@ export const Persistence = {
         GameState.equipment.weaponId = 'w1';
         GameState.equipment.armorId = 'a1';
         GameState.equipment.charmId = 'c1';
+        GameState.shop = { itemUnlocks: { w1: true, a1: true, c1: true } };
+        GameState.achievements = {};
 
         // Reset combat state
         GameState.combat.isActive = false;
@@ -92,6 +137,11 @@ export const Persistence = {
 
         // Reset respawn flag
         CombatEngine.isRespawning = false;
+        Shop.normalizeShopState?.();
+        Achievements.normalizeAchievementsState?.();
+        Skills.normalizePlayerSkills?.(GameState.player);
+        Skills.resetSkillRuntimeState?.();
+        EnemyUnlocks.checkEnemyUnlocks?.();
 
         // Reinitialize UI (which repopulates dropdowns and updates display)
         UI.populateDropdowns();
