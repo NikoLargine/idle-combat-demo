@@ -98,12 +98,6 @@ export function onItemPurchased(item) {
 
 export function getShopItems() {
     normalizeShopState();
-    getAllEquipmentItems().forEach(item => {
-        if (!item.unlocked) {
-            item.rarity = rollRarity();
-            GameState.shop.itemRarities[item.id] = item.rarity;
-        }
-    });
 
     return getAllEquipmentItems().map(item => {
         const rarity = normalizeRarityId(item.rarity);

@@ -148,14 +148,19 @@ export const UI = {
     },
 
     updateAll() {
-        this.renderPlayerStats();
-        this.renderCombat();
+        this.updateCombatFrame();
         this.renderMissionsPolished();
-        this.updateMissionPanel();
         this.renderSkills();
         this.renderShop();
         this.renderEquipment();
         this.renderAchievements();
+    },
+
+    // Lightweight renderer for high-frequency combat ticks.
+    updateCombatFrame() {
+        this.renderPlayerStats();
+        this.renderCombat();
+        this.updateMissionPanel();
         this.renderStatusEffects();
         this.updateLog();
         this.updateCombatButton();

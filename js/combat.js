@@ -108,7 +108,13 @@ export const CombatEngine = {
             GameState.enemy.tickTimer = 0;
         }
 
-        if (!isOffline) UI.updateAll();
+        if (!isOffline) {
+            if (typeof UI.updateCombatFrame === 'function') {
+                UI.updateCombatFrame();
+            } else {
+                UI.updateAll();
+            }
+        }
     },
 
     processHit(attackerType, attackerStats, defenderStats, isOffline) {
