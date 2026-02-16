@@ -18,6 +18,13 @@
     </header>
 
     <main id="game-container">
+        <section id="missions-tab" class="panel mission-dropdown-panel">
+            <button id="missions-toggle" class="btn-secondary">Missions ▼</button>
+            <div id="missions-dropdown" class="hidden">
+                <div id="mission-list" class="mission-list scroll-container"></div>
+            </div>
+        </section>
+
         <section id="left-panel" class="panel">
             <h2>Player</h2>
 
@@ -54,7 +61,7 @@
 
             <div class="skill-section panel-subsection">
                 <h3>Skills</h3>
-                <div id="skill-list" class="skill-list"></div>
+                <div id="skill-list" class="skill-list scroll-container"></div>
             </div>
         </section>
 
@@ -68,7 +75,7 @@
             </div>
 
             <div class="avatar-container" id="enemy-avatar">
-                <h3 id="enemy-name-display">Training Dummy</h3>
+                <h3 id="enemy-name-display">Enemy</h3>
                 <div class="hp-bar-bg">
                     <div class="hp-bar-fill enemy-hp" id="enemy-hp-fill"></div>
                 </div>
@@ -97,7 +104,6 @@
             <div class="tab-list" role="tablist" aria-label="Systems Tabs">
                 <button class="tab tab-active" data-tab-target="tab-shop" aria-selected="true">Shop</button>
                 <button class="tab" data-tab-target="tab-equipment" aria-selected="false">Equipment</button>
-                <button class="tab" data-tab-target="tab-missions" aria-selected="false">Missions</button>
                 <button class="tab" data-tab-target="tab-achievements" aria-selected="false">Achievements</button>
                 <button class="tab" data-tab-target="tab-stats" aria-selected="false">Stats</button>
             </div>
@@ -105,7 +111,7 @@
             <div class="tab-panels">
                 <div id="tab-shop" class="tab-panel tab-visible">
                     <h3>Shop</h3>
-                    <div id="shop-list" class="shop-list"></div>
+                    <div id="shop-list" class="shop-list scroll-container"></div>
                 </div>
 
                 <div id="tab-equipment" class="tab-panel">
@@ -115,14 +121,10 @@
                         <select id="equip-weapon"></select>
                         <label for="equip-armor">Armor</label>
                         <select id="equip-armor"></select>
-                        <label for="equip-charm">Charm</label>
+                        <label for="equip-charm">Accessory</label>
                         <select id="equip-charm"></select>
                     </div>
-                </div>
-
-                <div id="tab-missions" class="tab-panel">
-                    <h3>Missions</h3>
-                    <div id="mission-list" class="mission-list"></div>
+                    <div id="equipment-list" class="equipment-list scroll-container"></div>
                 </div>
 
                 <div id="tab-achievements" class="tab-panel">
@@ -135,7 +137,7 @@
                     <div class="stats-grid">
                         <span>Wins</span><span id="tab-player-wins">0</span>
                         <span>Deaths</span><span id="tab-player-deaths">0</span>
-                        <span>Current Target</span><span id="tab-target-name">Training Dummy</span>
+                        <span>Current Target</span><span id="tab-target-name">Enemy</span>
                     </div>
                 </div>
             </div>

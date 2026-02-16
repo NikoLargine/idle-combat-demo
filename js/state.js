@@ -1,5 +1,6 @@
 import { CONFIG } from './config.js';
 import { calculateItemStats } from './rarity.js';
+import { getScaledEnemy } from './enemies.js';
 
 export const GameState = {
     player: {
@@ -17,8 +18,8 @@ export const GameState = {
         activeEffects: []
     },
     enemy: {
-        id: 'training_dummy',
-        currentHp: CONFIG.ENEMIES['training_dummy'].hp,
+        id: 'goblin',
+        currentHp: getScaledEnemy('goblin', 1)?.hp || 100,
         tickTimer: 0,
         activeEffects: []
     },

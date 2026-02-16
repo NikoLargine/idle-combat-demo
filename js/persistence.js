@@ -10,6 +10,7 @@ import * as Achievements from './achievements.js';
 import * as Skills from './skills.js';
 import * as StatusEffects from './statusEffects.js';
 import * as Missions from './missions.js';
+import { getScaledEnemy } from './enemies.js';
 
 export const Persistence = {
     SAVE_KEY: 'idle_combat_save_v1',
@@ -62,8 +63,8 @@ export const Persistence = {
 
             const missionActive = Missions.isMissionActive?.() || false;
             if (!CONFIG.ENEMIES[GameState.enemy.id] || (!missionActive && !CONFIG.ENEMIES[GameState.enemy.id].isUnlocked)) {
-                GameState.enemy.id = EnemyUnlocks.getFirstUnlockedEnemyId?.() || 'training_dummy';
-                GameState.enemy.currentHp = CONFIG.ENEMIES[GameState.enemy.id].hp;
+                GameState.enemy.id = EnemyUnlocks.getFirstUnlockedEnemyId?.() || 'goblin';
+                GameState.enemy.currentHp = (getScaledEnemy(GameState.enemy.id, GameState.player.level) || CONFIG.ENEMIES[GameState.enemy.id]).hp;
                 GameState.enemy.tickTimer = 0;
             }
 
@@ -82,8 +83,8 @@ export const Persistence = {
             localStorage.removeItem(this.SAVE_KEY);
 
             // Reset to defaults
-            GameState.enemy.id = 'training_dummy';
-            GameState.enemy.currentHp = CONFIG.ENEMIES['training_dummy'].hp;
+            GameState.enemy.id = 'goblin';
+            GameState.enemy.currentHp = (getScaledEnemy('goblin', GameState.player.level) || CONFIG.ENEMIES['goblin']).hp;
             GameState.enemy.tickTimer = 0;
             GameState.enemy.activeEffects = [];
 
@@ -135,8 +136,8 @@ export const Persistence = {
         localStorage.removeItem(this.SAVE_KEY);
 
         // Reset enemy first (before player, so config exists)
-        GameState.enemy.id = 'training_dummy';
-        GameState.enemy.currentHp = CONFIG.ENEMIES['training_dummy'].hp;
+        GameState.enemy.id = 'goblin';
+        GameState.enemy.currentHp = (getScaledEnemy('goblin', GameState.player.level) || CONFIG.ENEMIES['goblin']).hp;
         GameState.enemy.tickTimer = 0;
         GameState.enemy.activeEffects = [];
 

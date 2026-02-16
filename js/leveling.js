@@ -67,7 +67,7 @@ export function getEnemyDefeatXP(enemyId) {
     const enemy = CONFIG.ENEMIES[enemyId];
     if (!enemy) return 0;
 
-    const enemyLevel = Number.isFinite(enemy.level) ? Math.max(MIN_LEVEL, Math.floor(enemy.level)) : MIN_LEVEL;
+    const enemyLevel = Number.isFinite(enemy.levelRequirement || enemy.level) ? Math.max(MIN_LEVEL, Math.floor(enemy.levelRequirement || enemy.level)) : MIN_LEVEL;
     return enemyLevel * 10;
 }
 

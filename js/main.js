@@ -10,6 +10,7 @@ import * as Achievements from './achievements.js';
 import * as Skills from './skills.js';
 import * as StatusEffects from './statusEffects.js';
 import * as Missions from './missions.js';
+import { getScaledEnemy } from './enemies.js';
 
 document.addEventListener('DOMContentLoaded', () => {
     const tabButtons = Array.from(document.querySelectorAll('.tab[data-tab-target]'));
@@ -36,6 +37,17 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     activateTab('tab-shop');
+
+    const missionsToggle = document.getElementById('missions-toggle');
+    const missionsDropdown = document.getElementById('missions-dropdown');
+    if (missionsToggle && missionsDropdown) {
+        missionsToggle.addEventListener('click', () => {
+            const isOpen = !missionsDropdown.classList.contains('hidden');
+            missionsDropdown.classList.toggle('hidden', isOpen);
+            missionsToggle.textContent = isOpen ? 'Missions ▼' : 'Missions ▲';
+        });
+    }
+
 
     Achievements.configureAchievementRewardHandlers?.({
         gold: amount => Economy.addGold?.(amount),
@@ -181,6 +193,21 @@ document.addEventListener('DOMContentLoaded', () => {
         UI.updateAll();
     });
 
+
+    document.getElementById('equipment-list').addEventListener('click', (e) => {
+        if (!(e.target instanceof Element)) return;
+        const button = e.target.closest('button[data-action][data-item-id]');
+        if (!button || button.dataset.action !== 'equip') return;
+        const itemId = button.dataset.itemId;
+        if (!itemId) return;
+        if (Shop.equipItem?.(itemId)) {
+            const item = Shop.getItemById?.(itemId);
+            if (item) GameState.addLog(`Equipped ${item.name}.`);
+        }
+        UI.populateDropdowns();
+        UI.updateAll();
+    });
+
     // Skills interactions (manual active skill use)
     document.getElementById('skill-list').addEventListener('click', (e) => {
         if (!(e.target instanceof Element)) return;
@@ -222,7 +249,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         CombatEngine.stop(); // Stop combat when switching targets
         GameState.enemy.id = e.target.value;
-        GameState.enemy.currentHp = CONFIG.ENEMIES[e.target.value].hp;
+        GameState.enemy.currentHp = (getScaledEnemy(e.target.value, GameState.player.level) || CONFIG.ENEMIES[e.target.value]).hp;
         GameState.enemy.tickTimer = 0;
         GameState.enemy.activeEffects = [];
         UI.updateAll();
