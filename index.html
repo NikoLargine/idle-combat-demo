@@ -18,10 +18,10 @@
     </header>
 
     <main id="game-container">
-        <section id="missions-tab" class="panel mission-dropdown-panel">
-            <button id="missions-toggle" class="btn-secondary">Missions ▼</button>
-            <div id="missions-dropdown" class="hidden">
-                <div id="mission-list" class="mission-list scroll-container"></div>
+        <section id="missions-header" class="panel mission-dropdown-panel">
+            <button id="missions-toggle" class="btn-primary" aria-expanded="false">🗺 Missions</button>
+            <div id="missions-dropdown">
+                <div id="mission-list" class="mission-list scroll-container-large"></div>
             </div>
         </section>
 
@@ -32,7 +32,7 @@
                 <div class="hp-bar-bg">
                     <div class="hp-bar-fill" id="player-hp-fill"></div>
                 </div>
-                <div class="hp-text"><span id="player-current-hp">100</span> / <span id="player-max-hp">100</span></div>
+                <div class="hp-text">❤️ <span id="player-current-hp">100</span> / <span id="player-max-hp">100</span></div>
                 <div class="status-effects" id="player-effects"></div>
             </div>
 
@@ -42,7 +42,7 @@
                     <span class="gold-display">💰 <strong id="player-gold-stat">0</strong></span>
                 </div>
                 <div class="xp-row">
-                    <span>XP Progress</span>
+                    <span>⭐ XP Progress</span>
                     <span><span id="player-xp-stat">0</span> / <span id="player-xp-required-stat">100</span></span>
                 </div>
                 <div class="xp-bar-bg">
@@ -51,17 +51,17 @@
             </div>
 
             <div class="stats-grid panel-subsection">
-                <span>Damage</span><span id="player-dmg-stat">0-0</span>
-                <span>Accuracy</span><span id="player-acc-stat">0</span>
-                <span>Evasion</span><span id="player-eva-stat">0</span>
-                <span>Reduction</span><span id="player-dr-stat">0%</span>
-                <span>Wins</span><span id="player-wins-stat">0</span>
-                <span>Deaths</span><span id="player-deaths-stat">0</span>
+                <span>⚔ Damage</span><span id="player-dmg-stat">0-0</span>
+                <span>🎯 Accuracy</span><span id="player-acc-stat">0</span>
+                <span>🌀 Evasion</span><span id="player-eva-stat">0</span>
+                <span>🛡 Reduction</span><span id="player-dr-stat">0%</span>
+                <span>🏆 Wins</span><span id="player-wins-stat">0</span>
+                <span>☠ Deaths</span><span id="player-deaths-stat">0</span>
             </div>
 
             <div class="skill-section panel-subsection">
                 <h3>Skills</h3>
-                <div id="skill-list" class="skill-list scroll-container"></div>
+                <div id="skill-list" class="skill-list scroll-container-large"></div>
             </div>
         </section>
 
@@ -70,7 +70,7 @@
             <div class="mission-active-info" id="mission-active-info"></div>
 
             <div class="target-select-row">
-                <label for="enemy-selector">Target</label>
+                <label for="enemy-selector">🎯 Target</label>
                 <select id="enemy-selector" class="enemy-dropdown"></select>
             </div>
 
@@ -79,14 +79,14 @@
                 <div class="hp-bar-bg">
                     <div class="hp-bar-fill enemy-hp" id="enemy-hp-fill"></div>
                 </div>
-                <div class="hp-text"><span id="enemy-current-hp">200</span> / <span id="enemy-max-hp">200</span></div>
+                <div class="hp-text">❤️ <span id="enemy-current-hp">200</span> / <span id="enemy-max-hp">200</span></div>
                 <div class="status-effects" id="enemy-effects"></div>
             </div>
 
             <div class="stats-grid compact">
-                <span>Damage</span><span id="enemy-dmg-stat">0-0</span>
-                <span>Accuracy</span><span id="enemy-acc-stat">0</span>
-                <span>Evasion</span><span id="enemy-eva-stat">0</span>
+                <span>⚔ Damage</span><span id="enemy-dmg-stat">0-0</span>
+                <span>🎯 Accuracy</span><span id="enemy-acc-stat">0</span>
+                <span>🌀 Evasion</span><span id="enemy-eva-stat">0</span>
             </div>
 
             <div class="action-section">
@@ -111,20 +111,25 @@
             <div class="tab-panels">
                 <div id="tab-shop" class="tab-panel tab-visible">
                     <h3>Shop</h3>
-                    <div id="shop-list" class="shop-list scroll-container"></div>
+                    <div id="shop-tabs" class="shop-tabs" role="tablist" aria-label="Shop Categories">
+                        <button class="shop-tab active" data-type="weapon">⚔ Weapons</button>
+                        <button class="shop-tab" data-type="armor">🛡 Armor</button>
+                        <button class="shop-tab" data-type="accessory">💍 Accessories</button>
+                    </div>
+                    <div id="shop-list" class="shop-list scroll-container-large"></div>
                 </div>
 
                 <div id="tab-equipment" class="tab-panel">
                     <h3>Equipment</h3>
                     <div class="equipment-controls">
-                        <label for="equip-weapon">Weapon</label>
+                        <label for="equip-weapon">⚔ Weapon</label>
                         <select id="equip-weapon"></select>
-                        <label for="equip-armor">Armor</label>
+                        <label for="equip-armor">🛡 Armor</label>
                         <select id="equip-armor"></select>
-                        <label for="equip-charm">Accessory</label>
+                        <label for="equip-charm">💍 Accessory</label>
                         <select id="equip-charm"></select>
                     </div>
-                    <div id="equipment-list" class="equipment-list scroll-container"></div>
+                    <div id="equipment-list" class="equipment-list scroll-container-large"></div>
                 </div>
 
                 <div id="tab-achievements" class="tab-panel">
@@ -135,9 +140,9 @@
                 <div id="tab-stats" class="tab-panel">
                     <h3>Session Stats</h3>
                     <div class="stats-grid">
-                        <span>Wins</span><span id="tab-player-wins">0</span>
-                        <span>Deaths</span><span id="tab-player-deaths">0</span>
-                        <span>Current Target</span><span id="tab-target-name">Enemy</span>
+                        <span>🏆 Wins</span><span id="tab-player-wins">0</span>
+                        <span>☠ Deaths</span><span id="tab-player-deaths">0</span>
+                        <span>🎯 Current Target</span><span id="tab-target-name">Enemy</span>
                     </div>
                 </div>
             </div>

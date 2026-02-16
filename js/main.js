@@ -40,14 +40,41 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const missionsToggle = document.getElementById('missions-toggle');
     const missionsDropdown = document.getElementById('missions-dropdown');
+    const setMissionDropdownOpen = (isOpen) => {
+        if (!missionsToggle || !missionsDropdown) return;
+        missionsDropdown.classList.toggle('dropdown-open', isOpen);
+        missionsToggle.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
+        missionsToggle.textContent = isOpen ? '🗺 Missions ▲' : '🗺 Missions';
+    };
     if (missionsToggle && missionsDropdown) {
         missionsToggle.addEventListener('click', () => {
-            const isOpen = !missionsDropdown.classList.contains('hidden');
-            missionsDropdown.classList.toggle('hidden', isOpen);
-            missionsToggle.textContent = isOpen ? 'Missions ▼' : 'Missions ▲';
+            const isOpen = missionsDropdown.classList.contains('dropdown-open');
+            setMissionDropdownOpen(!isOpen);
         });
+        setMissionDropdownOpen(false);
     }
 
+    const shopTabButtons = Array.from(document.querySelectorAll('#shop-tabs .shop-tab'));
+    const setActiveShopTab = (type) => {
+        shopTabButtons.forEach(button => {
+            const isActive = button.dataset.type === type;
+            button.classList.toggle('active', isActive);
+            button.setAttribute('aria-selected', isActive ? 'true' : 'false');
+        });
+        UI.setShopFilter(type);
+    };
+    if (shopTabButtons.length) {
+        const defaultType = shopTabButtons.find(button => button.classList.contains('active'))?.dataset.type || 'weapon';
+        setActiveShopTab(defaultType);
+        shopTabButtons.forEach(button => {
+            button.addEventListener('click', () => {
+                const type = button.dataset.type;
+                if (!type) return;
+                setActiveShopTab(type);
+                UI.renderShop();
+            });
+        });
+    }
 
     Achievements.configureAchievementRewardHandlers?.({
         gold: amount => Economy.addGold?.(amount),
@@ -192,7 +219,6 @@ document.addEventListener('DOMContentLoaded', () => {
         UI.populateDropdowns();
         UI.updateAll();
     });
-
 
     document.getElementById('equipment-list').addEventListener('click', (e) => {
         if (!(e.target instanceof Element)) return;

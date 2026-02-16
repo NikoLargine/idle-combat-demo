@@ -16,16 +16,36 @@ function formatStat(value) {
     return value.toFixed(3).replace(/\.?0+$/, '');
 }
 
+function getSlotLabel(slot) {
+    if (slot === 'weapon') return 'Weapon';
+    if (slot === 'armor') return 'Armor';
+    if (slot === 'charm') return 'Accessory';
+    return slot;
+}
+
+function getSlotIcon(slot) {
+    if (slot === 'weapon') return '⚔';
+    if (slot === 'armor') return '🛡';
+    if (slot === 'charm') return '💍';
+    return '•';
+}
+
+function normalizeShopFilter(filterType) {
+    if (filterType === 'weapon' || filterType === 'armor' || filterType === 'charm') return filterType;
+    if (filterType === 'accessory') return 'charm';
+    return 'weapon';
+}
+
 function getShopStatText(item) {
     const stats = item.finalStats || calculateItemStats(item);
     if (item.slot === 'weapon') {
-        return `Damage +${stats.minHit || 0}-${stats.maxHit || 0}`;
+        return `⚔ Damage +${stats.minHit || 0}-${stats.maxHit || 0}`;
     }
     if (item.slot === 'armor') {
-        return `Damage Reduction +${stats.damageReduction || 0}%`;
+        return `🛡 Damage Reduction +${stats.damageReduction || 0}%`;
     }
     if (item.slot === 'charm') {
-        return `Accuracy +${stats.accuracy || 0}, Evasion +${stats.evasion || 0}`;
+        return `🎯 Accuracy +${stats.accuracy || 0}, 🌀 Evasion +${stats.evasion || 0}`;
     }
     return '';
 }
@@ -33,6 +53,7 @@ function getShopStatText(item) {
 export const UI = {
     // Cache DOM elements
     elements: {},
+    shopFilterType: 'weapon',
 
     init() {
         // Hydrate DOM cache
@@ -41,7 +62,7 @@ export const UI = {
                      'player-eva-stat', 'player-dr-stat', 'player-wins-stat', 'player-deaths-stat',
                      'enemy-current-hp', 'enemy-max-hp', 'enemy-hp-fill', 'enemy-dmg-stat', 'enemy-acc-stat',
                      'enemy-eva-stat', 'enemy-name-display', 'equip-weapon', 'equip-armor', 'equip-charm',
-                     'enemy-selector', 'mission-list', 'mission-active-info', 'btn-end-mission', 'shop-list', 'skill-list', 'equipment-list', 'missions-toggle', 'missions-dropdown',
+                     'enemy-selector', 'mission-list', 'mission-active-info', 'btn-end-mission', 'shop-list', 'shop-tabs', 'skill-list', 'equipment-list', 'missions-toggle', 'missions-dropdown',
                      'achievement-list', 'log-list', 'btn-toggle-combat', 'save-status', 'offline-modal',
                      'offline-summary-text', 'btn-close-modal', 'player-effects', 'enemy-effects',
                      'tab-player-wins', 'tab-player-deaths', 'tab-target-name'];
@@ -95,6 +116,10 @@ export const UI = {
         this.renderEnemies();
     },
 
+    setShopFilter(type) {
+        this.shopFilterType = normalizeShopFilter(type);
+    },
+
 
     renderEnemies() {
         const selector = this.elements['enemy-selector'];
@@ -125,7 +150,7 @@ export const UI = {
     updateAll() {
         this.renderPlayerStats();
         this.renderCombat();
-        this.renderMissions();
+        this.renderMissionsPolished();
         this.updateMissionPanel();
         this.renderSkills();
         this.renderShop();
@@ -223,6 +248,10 @@ export const UI = {
     },
 
     renderMissions() {
+        this.renderMissionsPolished();
+    },
+
+    renderMissionsPolished() {
         const list = this.elements['mission-list'];
         if (!list) return;
 
@@ -234,18 +263,21 @@ export const UI = {
             const actionButton = mission.active
                 ? `<button class="btn-secondary" disabled>Active</button>`
                 : `<button class="btn-secondary" data-action="start-mission" data-mission-id="${mission.id}" ${mission.unlocked ? '' : 'disabled'}>${mission.unlocked ? 'Start' : 'Locked'}</button>`;
-            const requirementText = mission.unlocked ? 'Unlocked' : mission.unlockRequirementText;
+            const requirementText = mission.unlocked ? 'Unlocked' : `🔒 ${mission.unlockRequirementText}`;
+            const lockIcon = mission.unlocked ? '' : '<span title="Locked">🔒</span>';
+            const progressText = mission.progressText ? ` | ${mission.progressText}` : '';
+            const areaModifierText = mission.areaModifierText || 'No area modifier';
 
             return `
                 <div class="mission-item ${missionClass}">
                     <div class="mission-item-header">
-                        <span class="mission-item-title">${mission.name}</span>
+                        <span class="mission-item-title">${mission.name} ${lockIcon}</span>
                         <span class="mission-item-waves">${mission.waves} Waves</span>
                     </div>
                     <div class="mission-item-desc">${mission.description}</div>
-                    <div class="mission-item-modifier">${mission.areaModifierText}</div>
-                    <div class="mission-item-reward">${mission.rewardText}</div>
-                    <div class="mission-item-meta">${requirementText} • ${mission.progressText || ''}</div>
+                    <div class="mission-item-modifier">${areaModifierText}</div>
+                    <div class="mission-item-reward">💰 ${mission.rewardText}</div>
+                    <div class="mission-item-meta">${requirementText}${progressText}</div>
                     <div class="mission-item-actions">${actionButton}</div>
                 </div>
             `;
@@ -259,14 +291,14 @@ export const UI = {
 
         const summary = Missions.getActiveMissionSummary?.() || { active: false };
         if (!summary.active) {
-            info.innerHTML = `<div class="mission-active-text">Mode: Free Fight</div>`;
+            info.innerHTML = `<div class="mission-active-text">🧭 Mode: Free Fight</div>`;
             endBtn.disabled = true;
             return;
         }
 
         info.innerHTML = `
-            <div class="mission-active-text">Mission: ${summary.name}</div>
-            <div class="mission-active-wave">${summary.waveText}</div>
+            <div class="mission-active-text">🗺 Mission: ${summary.name}</div>
+            <div class="mission-active-wave">🌊 ${summary.waveText}</div>
             <div class="mission-active-modifier">${summary.modifierText}</div>
         `;
         endBtn.disabled = false;
@@ -334,13 +366,21 @@ export const UI = {
 
         const playerGold = Number.isFinite(GameState.player.gold) ? Math.max(0, Math.floor(GameState.player.gold)) : 0;
         const items = Shop.getShopItems?.() || [];
+        const filterSlot = normalizeShopFilter(this.shopFilterType);
+        const filteredItems = items.filter(item => item.slot === filterSlot);
 
-        shopList.innerHTML = items.map(item => {
+        if (!filteredItems.length) {
+            shopList.innerHTML = '<div class="shop-item">No items in this category.</div>';
+            return;
+        }
+
+        shopList.innerHTML = filteredItems.map(item => {
             const unlocked = !!item.unlocked;
             const rarityId = normalizeRarityId(item.rarity);
             const rarityInfo = item.rarityInfo || getRarityDefinition(rarityId);
             const itemClass = `${unlocked ? 'item-owned' : 'item-locked'} rarity-${rarityId}`;
-            const slotLabel = item.slot.charAt(0).toUpperCase() + item.slot.slice(1);
+            const slotLabel = getSlotLabel(item.slot);
+            const slotIcon = getSlotIcon(item.slot);
             const cost = Number.isFinite(item.cost) ? Math.max(0, Math.floor(item.cost)) : 0;
             const canAfford = playerGold >= cost;
             const purchaseDisabled = unlocked || !canAfford;
@@ -348,16 +388,16 @@ export const UI = {
             const equippedId = stateKey ? GameState.equipment[stateKey] : '';
             const isEquipped = equippedId === item.id;
 
-            const statusText = unlocked ? 'Owned' : `${cost} Gold`;
-            const purchaseLabel = unlocked ? 'Owned' : 'Purchase';
+            const statusText = unlocked ? 'Owned' : `💰 ${cost} Gold`;
+            const purchaseLabel = unlocked ? 'Owned' : 'Buy';
             const equipDisabled = !unlocked;
             const equipLabel = isEquipped ? 'Equipped' : 'Equip';
             const statText = getShopStatText(item);
 
             return `
-                <div class="shop-item ${itemClass}" style="--item-rarity-color: ${rarityInfo.color};" title="${statText}">
+                <div class="shop-item item-card ${itemClass}" style="--item-rarity-color: ${rarityInfo.color};" title="${statText}">
                     <div class="shop-item-details">
-                        <div class="shop-item-title">${item.name} <span class="shop-slot">[${slotLabel}]</span></div>
+                        <div class="shop-item-title">${slotIcon} ${item.name} <span class="shop-slot">[${slotLabel}]</span></div>
                         <div class="shop-item-rarity">${rarityInfo.name}</div>
                         <div class="shop-item-stats">${statText}</div>
                         <div class="shop-item-status">${statusText}</div>
@@ -383,7 +423,7 @@ export const UI = {
             const itemClass = skill.learned ? 'skill-learned' : 'skill-locked';
 
             let statusClass = 'skill-cooldown';
-            let statusText = skill.unlockRequirementText || 'Locked';
+            let statusText = `🔒 ${skill.unlockRequirementText || 'Locked'}`;
 
             if (skill.learned) {
                 statusClass = skill.available ? 'skill-ready' : 'skill-cooldown';
@@ -435,10 +475,14 @@ export const UI = {
             const equipped = equippedId === item.id;
             const stats = calculateItemStats(item);
             const statText = getShopStatText({ ...item, finalStats: stats });
+            const rarityId = normalizeRarityId(item.rarity);
+            const rarityInfo = getRarityDefinition(rarityId);
+            const slotIcon = getSlotIcon(item.slot);
             return `
-                <div class="equipment-item ${equipped ? 'equipment-item-equipped' : ''}">
+                <div class="equipment-item item-card ${equipped ? 'equipment-item-equipped' : ''} rarity-${rarityId}" style="--item-rarity-color: ${rarityInfo.color};">
                     <div>
-                        <div>${item.name}</div>
+                        <div class="equipment-item-name">${slotIcon} ${item.name}</div>
+                        <div class="shop-item-rarity">${rarityInfo.name}</div>
                         <div class="equipment-item-meta">${statText}</div>
                     </div>
                     <button class="btn-secondary" data-action="equip" data-item-id="${item.id}" ${equipped ? 'disabled' : ''}>${equipped ? 'Equipped' : 'Equip'}</button>
