@@ -9,6 +9,7 @@ import * as Achievements from './achievements.js';
 import * as Skills from './skills.js';
 import * as StatusEffects from './statusEffects.js';
 import * as Missions from './missions.js';
+import { getScaledEnemy } from './enemies.js';
 
 export const CombatEngine = {
     intervalId: null,
@@ -63,9 +64,9 @@ export const CombatEngine = {
         const eStats = StatusEffects.applyStatEffectModifiers?.({
             target: GameState.enemy,
             targetType: 'enemy',
-            stats: CONFIG.ENEMIES[GameState.enemy.id],
+            stats: getScaledEnemy(GameState.enemy.id, GameState.player.level) || CONFIG.ENEMIES[GameState.enemy.id],
             context: { phase: 'tick_player_turn' }
-        }) || CONFIG.ENEMIES[GameState.enemy.id];
+        }) || getScaledEnemy(GameState.enemy.id, GameState.player.level) || CONFIG.ENEMIES[GameState.enemy.id];
         const pStatsForTiming = Missions.applyAreaModifiersToStats?.({
             targetType: 'player',
             stats: pStats
@@ -94,9 +95,9 @@ export const CombatEngine = {
         const refreshedEStats = StatusEffects.applyStatEffectModifiers?.({
             target: GameState.enemy,
             targetType: 'enemy',
-            stats: CONFIG.ENEMIES[GameState.enemy.id],
+            stats: getScaledEnemy(GameState.enemy.id, GameState.player.level) || CONFIG.ENEMIES[GameState.enemy.id],
             context: { phase: 'tick_enemy_turn' }
-        }) || CONFIG.ENEMIES[GameState.enemy.id];
+        }) || getScaledEnemy(GameState.enemy.id, GameState.player.level) || CONFIG.ENEMIES[GameState.enemy.id];
         const refreshedEStatsForTiming = Missions.applyAreaModifiersToStats?.({
             targetType: 'enemy',
             stats: refreshedEStats
@@ -227,7 +228,7 @@ export const CombatEngine = {
             // Player wins
             GameState.player.wins++;
             const defeatedEnemyId = GameState.enemy.id;
-            const defeatedEnemy = CONFIG.ENEMIES[defeatedEnemyId];
+            const defeatedEnemy = getScaledEnemy(defeatedEnemyId, GameState.player.level) || CONFIG.ENEMIES[defeatedEnemyId];
             EnemyUnlocks.registerEnemyDefeat?.(defeatedEnemyId);
             EnemyUnlocks.checkEnemyUnlocks?.();
             Achievements.onEnemyDefeated?.(defeatedEnemy);
@@ -279,7 +280,7 @@ export const CombatEngine = {
     resetAfterDeath(victimType) {
         if (victimType === 'enemy') {
             // Reset enemy to full HP
-            GameState.enemy.currentHp = CONFIG.ENEMIES[GameState.enemy.id].hp;
+            GameState.enemy.currentHp = (getScaledEnemy(GameState.enemy.id, GameState.player.level) || CONFIG.ENEMIES[GameState.enemy.id]).hp;
             GameState.enemy.tickTimer = 0;
             StatusEffects.clearTemporaryEffects?.(GameState.enemy);
         } else {

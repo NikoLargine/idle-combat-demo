@@ -132,7 +132,8 @@ const SKILL_DEFINITIONS = [
         unlocked: false,
         unlockRequirement: { type: 'achievement', value: 'kill_10_enemies' },
         effect(context) {
-            const healAmount = Math.max(0, Math.floor(context.damageDealt * 0.12));
+            const bonus = isSkillLearned('bloodlust') ? 0.08 : 0;
+            const healAmount = Math.max(0, Math.floor(context.damageDealt * (0.12 + bonus)));
             if (healAmount <= 0) return { triggered: false, healAmount: 0 };
 
             const maxHp = GameState.getPlayerStats().hp;
@@ -177,7 +178,112 @@ const SKILL_DEFINITIONS = [
             const counterDamage = Math.max(1, Math.floor(context.damageDealt * 0.45));
             return { triggered: true, counterDamage };
         }
+    },
+    {
+        id: 'precision',
+        name: 'Precision',
+        type: 'passive',
+        cooldown: 0,
+        currentCooldown: 0,
+        unlockLevel: 6,
+        description: 'Sharpen technique for +8 accuracy and better critical consistency.',
+        unlocked: false,
+        unlockRequirement: { type: 'level', value: 6 },
+        effect(context) { return { ...context, bonusAccuracy: 8 }; }
+    },
+    {
+        id: 'iron_will',
+        name: 'Iron Will',
+        type: 'passive',
+        cooldown: 0,
+        currentCooldown: 0,
+        unlockLevel: 7,
+        description: 'Increase max HP by 12%.',
+        unlocked: false,
+        unlockRequirement: { type: 'level', value: 7 },
+        effect(context) { return context; }
+    },
+    {
+        id: 'battle_trance',
+        name: 'Battle Trance',
+        type: 'active',
+        cooldown: 16,
+        currentCooldown: 0,
+        unlockLevel: 8,
+        description: 'Enter trance for your next strike: +50% damage.',
+        unlocked: false,
+        unlockRequirement: { type: 'level', value: 8 },
+        effect(player, enemy, context) {
+            void player; void enemy;
+            context.runtime.pendingBattleTrance = { multiplier: 1.5 };
+            return { buffApplied: true };
+        }
+    },
+    {
+        id: 'evasive_maneuvers',
+        name: 'Evasive Maneuvers',
+        type: 'passive',
+        cooldown: 0,
+        currentCooldown: 0,
+        unlockLevel: 5,
+        description: 'Gain +10 evasion.',
+        unlocked: false,
+        unlockRequirement: { type: 'level', value: 5 },
+        effect(context) { return context; }
+    },
+    {
+        id: 'bloodlust',
+        name: 'Bloodlust',
+        type: 'passive',
+        cooldown: 0,
+        currentCooldown: 0,
+        unlockLevel: 9,
+        description: 'Improve lifesteal efficiency by 8%.',
+        unlocked: false,
+        unlockRequirement: { type: 'level', value: 9 },
+        effect(context) { return context; }
+    },
+    {
+        id: 'executioner',
+        name: 'Executioner',
+        type: 'passive',
+        cooldown: 0,
+        currentCooldown: 0,
+        unlockLevel: 10,
+        description: 'Deal 20% bonus damage to enemies below 35% HP.',
+        unlocked: false,
+        unlockRequirement: { type: 'level', value: 10 },
+        effect(context) { return context; }
+    },
+    {
+        id: 'fortified_guard',
+        name: 'Fortified Guard',
+        type: 'passive',
+        cooldown: 0,
+        currentCooldown: 0,
+        unlockLevel: 11,
+        description: 'Gain +8% damage reduction.',
+        unlocked: false,
+        unlockRequirement: { type: 'level', value: 11 },
+        effect(context) { return context; }
+    },
+    {
+        id: 'arcane_edge',
+        name: 'Arcane Edge',
+        type: 'active',
+        cooldown: 14,
+        currentCooldown: 0,
+        unlockLevel: 12,
+        description: 'Infuse next strike with arcane force: +30% damage and apply Exposed.',
+        unlocked: false,
+        unlockRequirement: { type: 'level', value: 12 },
+        effect(player, enemy, context) {
+            void player; void enemy;
+            context.runtime.pendingArcaneEdge = { multiplier: 1.3, expose: true };
+            return { buffApplied: true };
+        }
     }
+
 ];
 
 const DEFAULT_LEARNED_SKILLS = new Set(
@@ -190,7 +296,9 @@ const SKILL_BY_ID = Object.fromEntries(SKILL_DEFINITIONS.map(skill => [skill.id,
 const runtimeState = {
     cooldowns: {},
     pendingPowerStrike: null,
-    pendingFireStrike: null
+    pendingFireStrike: null,
+    pendingBattleTrance: null,
+    pendingArcaneEdge: null
 };
 
 let skillUsedListener = null;
@@ -287,6 +395,8 @@ export function resetSkillRuntimeState() {
     runtimeState.cooldowns = {};
     runtimeState.pendingPowerStrike = null;
     runtimeState.pendingFireStrike = null;
+    runtimeState.pendingBattleTrance = null;
+    runtimeState.pendingArcaneEdge = null;
 }
 
 export function isSkillLearned(skillId) {
@@ -326,6 +436,7 @@ export function getSkillState(skillId) {
         currentCooldown,
         available,
         learned,
+        unlockLevel: skill.unlockLevel || skill.unlockRequirement?.value || 1,
         unlockRequirement: skill.unlockRequirement || null,
         unlockRequirementText: getUnlockRequirementText(skill.unlockRequirement),
         canPurchase: !learned && skill.unlockRequirement?.type === 'shop',
@@ -454,6 +565,18 @@ export function applyPassiveStatModifiers({ attackerType, defenderType, attacker
         nextDefender.evasion = modifiedDefender.evasion;
     }
 
+
+    if (attackerType === 'player' && isSkillLearned('precision')) {
+        nextAttacker.accuracy = Math.max(0, (nextAttacker.accuracy || 0) + 8);
+    }
+
+    if (defenderType === 'player' && isSkillLearned('evasive_maneuvers')) {
+        nextDefender.evasion = Math.max(0, (nextDefender.evasion || 0) + 10);
+    }
+
+    if (defenderType === 'player' && isSkillLearned('fortified_guard')) {
+        nextDefender.damageReduction = Math.max(0, (nextDefender.damageReduction || 0) + 8);
+    }
     return {
         attackerStats: nextAttacker,
         defenderStats: nextDefender
@@ -476,12 +599,28 @@ export function applyActiveDamageModifiers(attackerType, damage) {
         runtimeState.pendingFireStrike = null;
     }
 
+    if (runtimeState.pendingBattleTrance) {
+        nextDamage = Math.max(1, Math.floor(nextDamage * runtimeState.pendingBattleTrance.multiplier));
+        runtimeState.pendingBattleTrance = null;
+    }
+
+    if (runtimeState.pendingArcaneEdge) {
+        nextDamage = Math.max(1, Math.floor(nextDamage * runtimeState.pendingArcaneEdge.multiplier));
+    }
+
     return nextDamage;
 }
 
 export function applyPassiveDamageModifiers({ attackerType, defenderType, damage, silent = false }) {
     void defenderType;
     let nextDamage = Math.max(1, Math.floor(damage));
+
+    if (attackerType === 'player' && isSkillLearned('executioner')) {
+        const enemy = GameState.enemy;
+        const enemyHp = Number(enemy?.currentHp || 0);
+        const enemyMaxHp = Number((CONFIG.ENEMIES[enemy?.id]?.baseStats?.hp) || 1);
+        if (enemyMaxHp > 0 && (enemyHp / enemyMaxHp) <= 0.35) nextDamage = Math.floor(nextDamage * 1.2);
+    }
 
     if (attackerType === 'player' && isSkillLearned('critical_mastery')) {
         const critSkill = getSkillDefinition('critical_mastery');
@@ -515,6 +654,11 @@ export function applyPassivePostHit({ attackerType, defenderType, damageDealt, s
                 healAmount: lifeSteal.healAmount
             });
         }
+    }
+
+    if (attackerType === 'player' && runtimeState.pendingArcaneEdge?.expose) {
+        StatusEffects.applyStatusEffect(GameState.enemy, { id: 'exposed', source: 'skill:arcane_edge' }, { targetType: 'enemy', silent });
+        runtimeState.pendingArcaneEdge = null;
     }
 
     if (attackerType === 'enemy' && defenderType === 'player' && isSkillLearned('counter_strike')) {
@@ -565,6 +709,16 @@ export function tryAutoUseSkills(targetEnemyId, options = {}) {
 
     if (isSkillAvailable('fire_strike')) {
         const used = useSkill('fire_strike', targetEnemy, options);
+        if (used) results.push(used);
+    }
+
+    if (isSkillAvailable('battle_trance')) {
+        const used = useSkill('battle_trance', targetEnemy, options);
+        if (used) results.push(used);
+    }
+
+    if (isSkillAvailable('arcane_edge')) {
+        const used = useSkill('arcane_edge', targetEnemy, options);
         if (used) results.push(used);
     }
 

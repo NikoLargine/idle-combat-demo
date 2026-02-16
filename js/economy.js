@@ -47,7 +47,7 @@ export function getEnemyDefeatGold(enemyId) {
     const enemy = CONFIG.ENEMIES[enemyId];
     if (!enemy) return 0;
 
-    const enemyLevel = Number.isFinite(enemy.level) ? Math.max(1, Math.floor(enemy.level)) : 1;
+    const enemyLevel = Number.isFinite(enemy.levelRequirement || enemy.level) ? Math.max(1, Math.floor(enemy.levelRequirement || enemy.level)) : 1;
     return Math.floor(enemyLevel * CONFIG.ECONOMY.GOLD_PER_ENEMY_LEVEL);
 }
 

@@ -3,12 +3,14 @@ import { CONFIG } from './config.js';
 import * as Leveling from './leveling.js';
 import * as Economy from './economy.js';
 import * as StatusEffects from './statusEffects.js';
+import { getScaledEnemy } from './enemies.js';
 
 const DEFAULT_MISSION_STATE = {
     currentMissionId: null,
     currentWave: 0,
     accumulatedXp: 0,
     accumulatedGold: 0,
+    missionProgress: {},
     lastResult: null
 };
 
@@ -17,93 +19,45 @@ let missionWaveListener = null;
 let missionCompletedListener = null;
 let missionFailedListener = null;
 
-function getSafeNumber(value, fallback = 0) {
-    if (!Number.isFinite(value)) return fallback;
-    return value;
-}
+const safeInt = (value, fallback = 0) => Number.isFinite(value) ? Math.max(0, Math.floor(value)) : fallback;
 
-function getSafeInt(value, fallback = 0) {
-    return Math.max(0, Math.floor(getSafeNumber(value, fallback)));
-}
+function getMissionById(id) { return (CONFIG.MISSIONS || []).find(m => m.id === id) || null; }
 
-function toPercentText(value) {
-    return `${(value * 100).toFixed(0)}%`;
+function getRequirementText(mission) {
+    const levelReq = Math.max(1, safeInt(mission.levelRequirement || mission.unlockRequirement?.value || 1, 1));
+    return `Requires Level ${levelReq}`;
 }
 
 function getAreaModifiers(mission) {
-    if (!mission || typeof mission !== 'object') return [];
-    if (Array.isArray(mission.areaModifiers)) {
-        return mission.areaModifiers.filter(Boolean);
-    }
-    if (mission.areaModifier && typeof mission.areaModifier === 'object') {
-        return [mission.areaModifier];
-    }
-    return [];
+    if (Array.isArray(mission?.areaModifiers)) return mission.areaModifiers;
+    return mission?.areaModifier ? [mission.areaModifier] : [];
 }
 
-function getRequirementText(requirement) {
-    if (!requirement || typeof requirement !== 'object') return 'Locked';
-    if (requirement.type === 'level') {
-        return `Reach Level ${Math.max(1, Math.floor(requirement.value || 1))}`;
-    }
-    return 'Locked';
+function getAreaModifierTextFromModifier(mod) {
+    if (!mod) return 'No area modifier';
+    if (mod.type === 'enemy_status') return 'Enemies can apply poison';
+    if (mod.type === 'healing_modifier') return `${mod.value < 0 ? '-' : '+'}${Math.abs(mod.value * 100).toFixed(0)}% healing`;
+    const value = Math.abs(mod.value) <= 1 ? `${mod.value > 0 ? '+' : ''}${(mod.value * 100).toFixed(0)}%` : `${mod.value > 0 ? '+' : ''}${mod.value}`;
+    const label = mod.type === 'enemy_stat' ? 'Enemy' : 'Player';
+    return `${label} ${mod.stat}: ${value}`;
 }
 
-function getRewardText(reward) {
-    if (!reward || typeof reward !== 'object') return 'No bonus reward';
-    const parts = [];
-    const gold = getSafeInt(reward.gold, 0);
-    const xpBonusPercent = getSafeNumber(reward.xpBonusPercent, 0);
-
-    if (gold > 0) {
-        parts.push(`${gold} Gold`);
-    }
-    if (xpBonusPercent > 0) {
-        parts.push(`+${toPercentText(xpBonusPercent)} mission XP bonus`);
+function getWavePlan(mission) {
+    if (Array.isArray(mission?.waves) && mission.waves.length && typeof mission.waves[0] === 'object') {
+        return mission.waves.flatMap((wave, index) => {
+            const count = Math.max(1, safeInt(wave.count, 1));
+            return Array.from({ length: count }, () => ({ enemyId: wave.enemyId, waveGroup: index + 1 }));
+        }).filter(w => !!CONFIG.ENEMIES[w.enemyId]);
     }
 
-    return parts.length > 0 ? parts.join(' | ') : 'No bonus reward';
-}
-
-function getAreaModifierTextFromModifier(modifier) {
-    if (!modifier || typeof modifier !== 'object') return 'No area modifier';
-    if (modifier.type === 'xp_multiplier') {
-        const value = getSafeNumber(modifier.value, 0);
-        const prefix = value >= 0 ? '+' : '';
-        return `XP Gain: ${prefix}${toPercentText(value)}`;
-    }
-    if (modifier.type === 'gold_multiplier') {
-        const value = getSafeNumber(modifier.value, 0);
-        const prefix = value >= 0 ? '+' : '';
-        return `Gold Gain: ${prefix}${toPercentText(value)}`;
-    }
-
-    const stat = modifier.stat || 'Stat';
-    const value = getSafeNumber(modifier.value, 0);
-    const isPercent = Math.abs(value) <= 1;
-    const prefix = value >= 0 ? '+' : '';
-    const amountText = isPercent ? `${prefix}${toPercentText(value)}` : `${prefix}${value}`;
-    const targetLabel = modifier.type === 'enemy_stat' ? 'Enemies' : 'Player';
-    return `${targetLabel}: ${amountText} ${stat}`;
-}
-
-function getAreaModifierText(mission) {
-    const entries = getAreaModifiers(mission);
-    if (!entries.length) return 'No area modifier';
-    return entries.map(getAreaModifierTextFromModifier).join(' | ');
-}
-
-function chooseEnemyFromPool(mission) {
-    const validIds = (mission.enemyPool || []).filter(enemyId => !!CONFIG.ENEMIES[enemyId]);
-    if (!validIds.length) return null;
-    const randomIndex = Math.floor(Math.random() * validIds.length);
-    return validIds[randomIndex];
+    const total = Math.max(1, safeInt(mission?.waves, 1));
+    const pool = Array.isArray(mission?.enemyPool) ? mission.enemyPool.filter(id => !!CONFIG.ENEMIES[id]) : [];
+    return Array.from({ length: total }, (_, i) => ({ enemyId: pool[i % Math.max(1, pool.length)] }));
 }
 
 function applyMissionEnemy(enemyId) {
-    const enemy = CONFIG.ENEMIES[enemyId];
+    const enemy = getScaledEnemy(enemyId, GameState.player.level) || CONFIG.ENEMIES[enemyId];
     if (!enemy) return false;
-
     GameState.enemy.id = enemyId;
     GameState.enemy.currentHp = enemy.hp;
     GameState.enemy.tickTimer = 0;
@@ -112,96 +66,20 @@ function applyMissionEnemy(enemyId) {
     return true;
 }
 
-function getMissionById(missionId) {
-    if (!missionId) return null;
-    return (CONFIG.MISSIONS || []).find(mission => mission.id === missionId) || null;
-}
-
-function getCurrentMissionStateEntry() {
-    normalizeMissionState();
-    return GameState.mission;
-}
-
-function onMissionStarted(payload) {
-    if (typeof missionStartedListener === 'function') {
-        missionStartedListener(payload);
-    }
-}
-
-function onMissionWave(payload) {
-    if (typeof missionWaveListener === 'function') {
-        missionWaveListener(payload);
-    }
-}
-
-function onMissionCompleted(payload) {
-    if (typeof missionCompletedListener === 'function') {
-        missionCompletedListener(payload);
-    }
-}
-
-function onMissionFailed(payload) {
-    if (typeof missionFailedListener === 'function') {
-        missionFailedListener(payload);
-    }
-}
-
 export function normalizeMissionState() {
-    if (!GameState.mission || typeof GameState.mission !== 'object' || Array.isArray(GameState.mission)) {
-        GameState.mission = { ...DEFAULT_MISSION_STATE };
-    }
-
-    const state = GameState.mission;
-    state.currentMissionId = typeof state.currentMissionId === 'string' ? state.currentMissionId : null;
-    state.currentWave = getSafeInt(state.currentWave, 0);
-    state.accumulatedXp = getSafeInt(state.accumulatedXp, 0);
-    state.accumulatedGold = getSafeInt(state.accumulatedGold, 0);
-    if (!state.lastResult || typeof state.lastResult !== 'object') {
-        state.lastResult = null;
-    }
-
-    if (!state.currentMissionId) return;
-    const mission = getMissionById(state.currentMissionId);
-    if (!mission) {
-        state.currentMissionId = null;
-        state.currentWave = 0;
-        state.accumulatedXp = 0;
-        state.accumulatedGold = 0;
-        return;
-    }
-
-    const safeWaves = Math.max(1, getSafeInt(mission.waves, 1));
-    if (state.currentWave <= 0) {
-        state.currentWave = 1;
-    }
-    if (state.currentWave > safeWaves) {
-        state.currentWave = safeWaves;
-    }
-
-    if (!mission.enemyPool.includes(GameState.enemy.id)) {
-        const replacementEnemy = chooseEnemyFromPool(mission);
-        if (replacementEnemy) {
-            applyMissionEnemy(replacementEnemy);
-        } else {
-            state.currentMissionId = null;
-            state.currentWave = 0;
-            state.accumulatedXp = 0;
-            state.accumulatedGold = 0;
+    if (!GameState.mission || typeof GameState.mission !== 'object' || Array.isArray(GameState.mission)) GameState.mission = { ...DEFAULT_MISSION_STATE };
+    Object.entries(DEFAULT_MISSION_STATE).forEach(([k, v]) => {
+        if (k === 'missionProgress') {
+            if (!GameState.mission.missionProgress || typeof GameState.mission.missionProgress !== 'object') GameState.mission.missionProgress = {};
+            return;
         }
-    }
+        if (typeof GameState.mission[k] === 'undefined') GameState.mission[k] = v;
+    });
 }
 
 export function isMissionUnlocked(mission) {
-    if (!mission || typeof mission !== 'object') return false;
-    const requirement = mission.unlockRequirement;
-    if (!requirement || typeof requirement !== 'object') return true;
-
-    if (requirement.type === 'level') {
-        const neededLevel = Math.max(1, Math.floor(requirement.value || 1));
-        return Math.max(1, Math.floor(GameState.player.level || 1)) >= neededLevel;
-    }
-
-    return false;
+    const requiredLevel = Math.max(1, safeInt(mission.levelRequirement || mission.unlockRequirement?.value || 1, 1));
+    return Math.max(1, safeInt(GameState.player.level, 1)) >= requiredLevel;
 }
 
 export function getCurrentMission() {
@@ -209,258 +87,142 @@ export function getCurrentMission() {
     return getMissionById(GameState.mission.currentMissionId);
 }
 
-export function isMissionActive() {
-    return !!getCurrentMission();
-}
+export function isMissionActive() { return !!getCurrentMission(); }
 
 export function getActiveMissionSummary() {
     const mission = getCurrentMission();
-    if (!mission) {
-        return {
-            active: false,
-            text: 'Free Fight Mode',
-            waveText: '',
-            modifierText: ''
-        };
-    }
-
-    const safeWave = Math.max(0, getSafeInt(GameState.mission.currentWave, 0));
-    const totalWaves = Math.max(1, getSafeInt(mission.waves, 1));
+    if (!mission) return { active: false, waveText: '', modifierText: '' };
+    const plan = getWavePlan(mission);
+    const totalWaves = Math.max(1, plan.length);
     return {
         active: true,
         missionId: mission.id,
         name: mission.name,
-        wave: safeWave,
+        wave: Math.max(1, safeInt(GameState.mission.currentWave, 1)),
         totalWaves,
-        waveText: `Wave ${safeWave}/${totalWaves}`,
-        modifierText: getAreaModifierText(mission),
-        rewardText: getRewardText(mission.reward)
+        waveText: `Wave ${Math.max(1, safeInt(GameState.mission.currentWave, 1))}/${totalWaves}`,
+        modifierText: getAreaModifiers(mission).map(getAreaModifierTextFromModifier).join(' | '),
+        rewardText: `+${safeInt(mission.reward?.xp, 0)} XP | +${safeInt(mission.reward?.gold, 0)} Gold`
     };
 }
 
 export function getMissionsForUI() {
     normalizeMissionState();
-    const activeMissionId = GameState.mission.currentMissionId;
-
     return (CONFIG.MISSIONS || []).map(mission => {
-        const unlocked = isMissionUnlocked(mission);
-        const totalWaves = Math.max(1, getSafeInt(mission.waves, 1));
+        const plan = getWavePlan(mission);
+        const cleared = safeInt(GameState.mission.missionProgress?.[mission.id], 0);
         return {
             ...mission,
-            waves: totalWaves,
-            unlocked,
-            active: mission.id === activeMissionId,
-            unlockRequirementText: getRequirementText(mission.unlockRequirement),
-            areaModifierText: getAreaModifierText(mission),
-            rewardText: getRewardText(mission.reward)
+            waves: plan.length,
+            unlocked: isMissionUnlocked(mission),
+            active: mission.id === GameState.mission.currentMissionId,
+            unlockRequirementText: getRequirementText(mission),
+            areaModifierText: getAreaModifiers(mission).map(getAreaModifierTextFromModifier).join(' | '),
+            rewardText: `+${safeInt(mission.reward?.xp, 0)} XP | +${safeInt(mission.reward?.gold, 0)} Gold${mission.reward?.possibleItemDrop ? ` | Drop: ${mission.reward.possibleItemDrop}` : ''}`,
+            progressText: `Clears: ${cleared}`
         };
     });
 }
 
 export function applyAreaModifiersToStats({ targetType, stats }) {
-    if (!stats || typeof stats !== 'object') return stats;
     const mission = getCurrentMission();
-    if (!mission) return { ...stats };
-
-    return getAreaModifiers(mission).reduce((nextStats, modifier) => {
-        if (!modifier || typeof modifier !== 'object') return nextStats;
-        if ((modifier.type === 'player_stat' && targetType !== 'player') ||
-            (modifier.type === 'enemy_stat' && targetType !== 'enemy')) {
-            return nextStats;
-        }
-
-        const stat = modifier.stat;
-        if (!stat || !(stat in nextStats)) return nextStats;
-
-        const currentValue = getSafeNumber(nextStats[stat], 0);
-        const value = getSafeNumber(modifier.value, 0);
-        const modified = Math.abs(value) <= 1
-            ? currentValue * (1 + value)
-            : currentValue + value;
-
-        return {
-            ...nextStats,
-            [stat]: Math.max(0, Number.isInteger(currentValue) ? Math.round(modified) : modified)
-        };
+    if (!mission || !stats) return { ...stats };
+    return getAreaModifiers(mission).reduce((next, mod) => {
+        if (!mod) return next;
+        if ((mod.type === 'player_stat' && targetType !== 'player') || (mod.type === 'enemy_stat' && targetType !== 'enemy')) return next;
+        if (!mod.stat || !(mod.stat in next)) return next;
+        const current = Number(next[mod.stat]) || 0;
+        const updated = Math.abs(mod.value) <= 1 ? current * (1 + mod.value) : current + mod.value;
+        next[mod.stat] = Math.max(0, Number.isInteger(current) ? Math.round(updated) : updated);
+        return next;
     }, { ...stats });
 }
 
-export function getRewardMultipliers() {
-    const mission = getCurrentMission();
-    if (!mission) {
-        return { xpMultiplier: 1, goldMultiplier: 1 };
-    }
-
-    return getAreaModifiers(mission).reduce((multipliers, modifier) => {
-        if (!modifier || typeof modifier !== 'object') return multipliers;
-        const value = getSafeNumber(modifier.value, 0);
-        if (modifier.type === 'xp_multiplier') {
-            multipliers.xpMultiplier = Math.max(0, multipliers.xpMultiplier * (1 + value));
-        }
-        if (modifier.type === 'gold_multiplier') {
-            multipliers.goldMultiplier = Math.max(0, multipliers.goldMultiplier * (1 + value));
-        }
-        return multipliers;
-    }, { xpMultiplier: 1, goldMultiplier: 1 });
-}
+export function getRewardMultipliers() { return { xpMultiplier: 1, goldMultiplier: 1 }; }
 
 export function progressWave(options = {}) {
     const mission = getCurrentMission();
     if (!mission) return { advanced: false, completed: false };
+    const plan = getWavePlan(mission);
+    const nextWave = safeInt(GameState.mission.currentWave, 0) + 1;
+    if (nextWave > plan.length) return endMission({ reason: 'completed', silent: options.silent });
 
-    const totalWaves = Math.max(1, getSafeInt(mission.waves, 1));
-    const state = getCurrentMissionStateEntry();
+    GameState.mission.currentWave = nextWave;
+    const entry = plan[nextWave - 1];
+    if (!entry || !applyMissionEnemy(entry.enemyId)) return failMission({ reason: 'invalid_enemy_pool', silent: options.silent });
 
-    if (state.currentWave >= totalWaves) {
-        return endMission({ reason: 'completed', silent: options.silent });
-    }
-
-    state.currentWave += 1;
-    const nextEnemyId = chooseEnemyFromPool(mission);
-    if (!nextEnemyId) {
-        return failMission({ reason: 'invalid_enemy_pool', silent: options.silent });
-    }
-
-    applyMissionEnemy(nextEnemyId);
-    onMissionWave({
-        silent: !!options.silent,
-        mission,
-        currentWave: state.currentWave,
-        totalWaves
-    });
-
-    return {
-        advanced: true,
-        completed: false,
-        mission,
-        currentWave: state.currentWave,
-        totalWaves
-    };
+    missionWaveListener?.({ mission, currentWave: nextWave, totalWaves: plan.length, silent: !!options.silent });
+    return { advanced: true, completed: false, mission, currentWave: nextWave, totalWaves: plan.length };
 }
 
 export function startMission(missionId, options = {}) {
     normalizeMissionState();
-
     const mission = getMissionById(missionId);
-    if (!mission) return false;
-    if (!isMissionUnlocked(mission)) return false;
+    if (!mission || !isMissionUnlocked(mission)) return false;
 
-    const state = getCurrentMissionStateEntry();
-    state.currentMissionId = mission.id;
-    state.currentWave = 0;
-    state.accumulatedXp = 0;
-    state.accumulatedGold = 0;
-    state.lastResult = null;
-
-    GameState.player.tickTimer = 0;
-    GameState.enemy.tickTimer = 0;
-    StatusEffects.clearTemporaryEffects?.(GameState.enemy);
+    GameState.mission.currentMissionId = mission.id;
+    GameState.mission.currentWave = 0;
+    GameState.mission.accumulatedXp = 0;
+    GameState.mission.accumulatedGold = 0;
+    GameState.mission.lastResult = null;
 
     const progressed = progressWave(options);
     if (progressed.failed) return false;
-
-    onMissionStarted({
-        silent: !!options.silent,
-        mission,
-        currentWave: GameState.mission.currentWave,
-        totalWaves: Math.max(1, getSafeInt(mission.waves, 1))
-    });
+    missionStartedListener?.({ mission, currentWave: GameState.mission.currentWave, totalWaves: getWavePlan(mission).length, silent: !!options.silent });
     return true;
 }
 
 export function endMission({ reason = 'manual', silent = false } = {}) {
     const mission = getCurrentMission();
-    if (!mission) {
-        return { ended: false, completed: false };
-    }
+    if (!mission) return { ended: false, completed: false };
 
-    const state = getCurrentMissionStateEntry();
-    const totalWaves = Math.max(1, getSafeInt(mission.waves, 1));
-    const completed = reason === 'completed' || state.currentWave >= totalWaves;
-    const baseRewardGold = getSafeInt(mission.reward?.gold, 0);
-    const xpBonusPercent = Math.max(0, getSafeNumber(mission.reward?.xpBonusPercent, 0));
-    const xpBonus = completed ? Math.floor(state.accumulatedXp * xpBonusPercent) : 0;
-    const goldBonus = completed ? baseRewardGold : 0;
+    const completed = reason === 'completed';
+    const bonusGold = completed ? safeInt(mission.reward?.gold, 0) : 0;
+    const bonusXp = completed ? safeInt(mission.reward?.xp, 0) : 0;
+    if (bonusGold > 0) Economy.addGold?.(bonusGold);
+    if (bonusXp > 0) Leveling.addXP?.(bonusXp);
 
-    if (goldBonus > 0) {
-        Economy.addGold?.(goldBonus);
-    }
-    if (xpBonus > 0) {
-        Leveling.addXP?.(xpBonus);
+    if (completed) {
+        const clears = safeInt(GameState.mission.missionProgress[mission.id], 0);
+        GameState.mission.missionProgress[mission.id] = clears + 1;
     }
 
     const result = {
         missionId: mission.id,
         missionName: mission.name,
-        reason,
         completed,
-        waveReached: state.currentWave,
-        totalWaves,
-        accumulatedXp: state.accumulatedXp,
-        accumulatedGold: state.accumulatedGold,
-        bonusXp: xpBonus,
-        bonusGold: goldBonus,
+        reason,
+        bonusXp,
+        bonusGold,
         silent: !!silent
     };
 
-    state.currentMissionId = null;
-    state.currentWave = 0;
-    state.accumulatedXp = 0;
-    state.accumulatedGold = 0;
-    state.lastResult = result;
+    GameState.mission.currentMissionId = null;
+    GameState.mission.currentWave = 0;
+    GameState.mission.accumulatedXp = 0;
+    GameState.mission.accumulatedGold = 0;
+    GameState.mission.lastResult = result;
 
-    if (completed) {
-        onMissionCompleted(result);
-    } else if (reason === 'failed') {
-        onMissionFailed(result);
-    }
-
-    return {
-        ended: true,
-        completed,
-        failed: reason === 'failed',
-        ...result
-    };
+    if (completed) missionCompletedListener?.(result);
+    if (reason === 'failed') missionFailedListener?.(result);
+    return { ended: true, ...result };
 }
 
-export function failMission({ reason = 'failed', silent = false } = {}) {
-    const mission = getCurrentMission();
-    if (!mission) {
-        return { ended: false, failed: false };
-    }
-    void reason;
-    return endMission({ reason: 'failed', silent });
-}
+export function failMission({ silent = false } = {}) { return endMission({ reason: 'failed', silent }); }
 
 export function onEnemyDefeated({ xpGained = 0, goldGained = 0, silent = false } = {}) {
     const mission = getCurrentMission();
     if (!mission) return { missionActive: false };
 
-    const state = getCurrentMissionStateEntry();
-    state.accumulatedXp += getSafeInt(xpGained, 0);
-    state.accumulatedGold += getSafeInt(goldGained, 0);
+    GameState.mission.accumulatedXp += safeInt(xpGained, 0);
+    GameState.mission.accumulatedGold += safeInt(goldGained, 0);
 
-    const totalWaves = Math.max(1, getSafeInt(mission.waves, 1));
-    if (state.currentWave >= totalWaves) {
-        return endMission({ reason: 'completed', silent });
-    }
-
+    const plan = getWavePlan(mission);
+    if (GameState.mission.currentWave >= plan.length) return endMission({ reason: 'completed', silent });
     return progressWave({ silent });
 }
 
-export function setMissionStartedListener(listener) {
-    missionStartedListener = typeof listener === 'function' ? listener : null;
-}
-
-export function setMissionWaveListener(listener) {
-    missionWaveListener = typeof listener === 'function' ? listener : null;
-}
-
-export function setMissionCompletedListener(listener) {
-    missionCompletedListener = typeof listener === 'function' ? listener : null;
-}
-
-export function setMissionFailedListener(listener) {
-    missionFailedListener = typeof listener === 'function' ? listener : null;
-}
-
+export function setMissionStartedListener(listener) { missionStartedListener = typeof listener === 'function' ? listener : null; }
+export function setMissionWaveListener(listener) { missionWaveListener = typeof listener === 'function' ? listener : null; }
+export function setMissionCompletedListener(listener) { missionCompletedListener = typeof listener === 'function' ? listener : null; }
+export function setMissionFailedListener(listener) { missionFailedListener = typeof listener === 'function' ? listener : null; }

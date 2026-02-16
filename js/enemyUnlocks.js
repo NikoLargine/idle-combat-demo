@@ -97,7 +97,7 @@ export function checkEnemyUnlocks() {
 
 export function getFirstUnlockedEnemyId() {
     const unlockedEntry = Object.entries(CONFIG.ENEMIES).find(([, enemy]) => enemy.isUnlocked);
-    return unlockedEntry ? unlockedEntry[0] : 'training_dummy';
+    return unlockedEntry ? unlockedEntry[0] : 'goblin';
 }
 
 export function onEnemyUnlocksChanged(callback) {
