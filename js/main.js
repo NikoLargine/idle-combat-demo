@@ -18,6 +18,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     Achievements.setAchievementUnlockedListener?.((achievement) => {
         GameState.addLog(`Achievement unlocked: ${achievement.name}`);
+        Skills.checkSkillUnlocks?.('achievement', achievement.id);
         if (UI.elements && UI.elements['achievement-list']) {
             UI.populateDropdowns();
             UI.updateAll();
@@ -26,10 +27,15 @@ document.addEventListener('DOMContentLoaded', () => {
     Skills.setSkillUsedListener?.((skill) => {
         GameState.addLog(`Skill used: ${skill.name}`);
     });
+    Skills.setSkillUnlockedListener?.((skill) => {
+        GameState.addLog(`Skill unlocked: ${skill.name}`);
+    });
 
     // 1. Initialize Systems
     Persistence.load();
     Skills.normalizePlayerSkills?.(GameState.player);
+    Skills.checkSkillUnlocks?.('level');
+    Skills.checkSkillUnlocks?.('achievement');
     UI.init();
 
     // 2. Start Auto-Save Loop
@@ -122,9 +128,22 @@ document.addEventListener('DOMContentLoaded', () => {
 
         const action = button.dataset.action;
         const skillId = button.dataset.skillId;
-        if (!skillId || action !== 'use-skill') return;
+        if (!skillId) return;
 
-        Skills.useSkill?.(skillId, GameState.enemy.id);
+        if (action === 'use-skill') {
+            Skills.useSkill?.(skillId, GameState.enemy.id);
+        }
+
+        if (action === 'purchase-skill') {
+            const didPurchase = Skills.purchaseSkill?.(skillId);
+            if (didPurchase) {
+                const skill = Skills.getSkillDefinition?.(skillId);
+                if (skill) {
+                    GameState.addLog(`Purchased skill: ${skill.name}`);
+                }
+            }
+        }
+
         UI.updateAll();
     });
 

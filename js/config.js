@@ -28,6 +28,16 @@ export const CONFIG = {
             reward: { type: 'gold', amount: 100 }
         },
         {
+            id: 'kill_50_enemies',
+            name: 'Goblin Exterminator',
+            description: 'Defeat 50 enemies.',
+            type: 'kill',
+            target: 50,
+            current: 0,
+            unlocked: false,
+            reward: { type: 'gold', amount: 400 }
+        },
+        {
             id: 'reach_level_5',
             name: 'Rising Hero',
             description: 'Reach player level 5.',

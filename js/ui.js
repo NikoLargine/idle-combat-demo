@@ -208,23 +208,39 @@ export const UI = {
         if (!list) return;
 
         const skills = Skills.getSkillStatesForUI?.() || [];
+        const playerGold = Number.isFinite(GameState.player.gold) ? Math.max(0, Math.floor(GameState.player.gold)) : 0;
+
         list.innerHTML = skills.map(skill => {
             const isActive = skill.type === 'active';
             const itemClass = skill.learned ? 'skill-learned' : 'skill-locked';
-            const statusClass = skill.available ? 'skill-ready' : 'skill-cooldown';
-            const cooldownText = isActive
-                ? (skill.available ? 'Ready' : `${skill.currentCooldown.toFixed(1)}s`)
-                : 'Passive';
-            const actionButton = isActive
-                ? `<button class="btn-secondary" data-action="use-skill" data-skill-id="${skill.id}" ${skill.available ? '' : 'disabled'}>Use</button>`
-                : `<button class="btn-secondary" disabled>Passive</button>`;
+
+            let statusClass = 'skill-cooldown';
+            let statusText = skill.unlockRequirementText || 'Locked';
+
+            if (skill.learned) {
+                statusClass = skill.available ? 'skill-ready' : 'skill-cooldown';
+                statusText = isActive
+                    ? (skill.available ? 'Ready' : `${skill.currentCooldown.toFixed(1)}s`)
+                    : 'Passive';
+            }
+
+            let actionButton = `<button class="btn-secondary" disabled>Locked</button>`;
+            if (skill.learned) {
+                actionButton = isActive
+                    ? `<button class="btn-secondary" data-action="use-skill" data-skill-id="${skill.id}" ${skill.available ? '' : 'disabled'}>Use</button>`
+                    : `<button class="btn-secondary" disabled>Passive</button>`;
+            } else if (skill.canPurchase) {
+                const canAfford = playerGold >= skill.purchaseCost;
+                const buttonLabel = `Buy (${skill.purchaseCost}g)`;
+                actionButton = `<button class="btn-secondary" data-action="purchase-skill" data-skill-id="${skill.id}" ${canAfford ? '' : 'disabled'}>${buttonLabel}</button>`;
+            }
 
             return `
                 <div class="skill-item ${itemClass}">
                     <div class="skill-item-details">
                         <div class="skill-item-title">${skill.name}</div>
                         <div class="skill-item-desc">${skill.description}</div>
-                        <div class="skill-item-status ${statusClass}">${cooldownText}</div>
+                        <div class="skill-item-status ${statusClass}">${statusText}</div>
                     </div>
                     <div class="skill-item-actions">
                         ${actionButton}
