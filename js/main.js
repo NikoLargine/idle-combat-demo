@@ -12,6 +12,31 @@ import * as StatusEffects from './statusEffects.js';
 import * as Missions from './missions.js';
 
 document.addEventListener('DOMContentLoaded', () => {
+    const tabButtons = Array.from(document.querySelectorAll('.tab[data-tab-target]'));
+    const tabPanels = Array.from(document.querySelectorAll('.tab-panel'));
+
+    const activateTab = (tabId) => {
+        tabButtons.forEach(button => {
+            const isActive = button.dataset.tabTarget === tabId;
+            button.classList.toggle('tab-active', isActive);
+            button.setAttribute('aria-selected', isActive ? 'true' : 'false');
+        });
+
+        tabPanels.forEach(panel => {
+            panel.classList.toggle('tab-visible', panel.id === tabId);
+        });
+    };
+
+    tabButtons.forEach(button => {
+        button.addEventListener('click', () => {
+            const tabId = button.dataset.tabTarget;
+            if (!tabId) return;
+            activateTab(tabId);
+        });
+    });
+
+    activateTab('tab-shop');
+
     Achievements.configureAchievementRewardHandlers?.({
         gold: amount => Economy.addGold?.(amount),
         xp: amount => Leveling.addXP?.(amount),
